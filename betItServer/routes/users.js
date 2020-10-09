@@ -1,11 +1,10 @@
+"use strict";
 let express = require('express');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const { pool } = require('../database_connection/pool');
-const jwt = require('jsonwebtoken');
 let tokenHandler = require('../tokens/token_auth');
 const { userLogger } = require('../loggerSetup/logSetup');
-const { query } = require('express');
 const {authenticateToken} = require('../tokens/token_auth');
 var router = express.Router();
 
@@ -50,7 +49,6 @@ router.post('/login', async (req, res) => {
     // compare the pw to the hash I have in the db
     const isMatch = await bcrypt.compare(password, user.rows[0].password);
     if (isMatch) {
-
       const { accessToken, refreshToken } = tokenHandler.generateTokens(user.rows[0].username);
       // now save the access and refresh tokens to the user's data base
       const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';

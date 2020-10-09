@@ -5,17 +5,21 @@ log4js.configure({
     appenders: {
         userErrors: { type: "file", filename: "./logs/users/userErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         mainErrors: { type: "file", filename: "./logs/main/mainErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        btcErrors: { type: "file", filename: "./logs/main/btcErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         console: { type: 'console' },
     },
     categories: {
         userErrors: { appenders: ["userErrors"], level: "debug" },
         mainErrors: { appenders: ["mainErrors"], level: "debug" },
+        btcErrors: { appenders: ["btcErrors"], level: "debug" },
         default: { appenders: ['console'], level: 'trace'}
     },
 });
 
 const userLogger = log4js.getLogger("userErrors");
 const mainLogger = log4js.getLogger("mainErrors");
+const btcLogger = log4js.getLogger("btcErrors");
 
 exports.userLogger = userLogger;
 exports.mainLogger = mainLogger;
+exports.btcLogger = btcLogger;

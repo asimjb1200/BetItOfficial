@@ -5,6 +5,8 @@
  */
 
 var app = require('../app');
+// Load custom .env file into process.env
+require('dotenv').config()
 var debug = require('debug')('betitserver:server');
 var http = require('http');
 

@@ -20,7 +20,7 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/wallet-handler', authenticateToken, walletHandler);
+app.use('/btc-handler', authenticateToken, walletHandler);
 app.use('/users', usersRouter);
 
 module.exports = app;
