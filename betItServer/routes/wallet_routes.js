@@ -59,12 +59,16 @@ async function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
 }
 
 router.post('/create-wallet/:userName', async (req, res) => {
-    const name = req.body.userName;
+    const name = req.params.userName;
     try {
         // first generate an address for the user and pull out the data
         let addrInfo = await axios.post(`${apiTest}/addrs`, '');
 
-        const { privateKey, publicKey, address, wif } = addrInfo.data;
+        // const { privateKey, publicKey, address, wif } = addrInfo.data;
+        const privateKey = addrInfo.data.private;
+        // dont need the public key if I have the address, serves the same purpose
+        const {address} = addrInfo.data.address;
+        console.log(addrInfo.data)
 
         // get the address ready to generate a wallet for the user
         let walletData = {
@@ -73,16 +77,16 @@ router.post('/create-wallet/:userName', async (req, res) => {
         }
 
         try {
-            let walletInfo = await axios.post(`${apiTest}/wallets?token=${process.env.BLOCKCYPHER_TOKEN}`, JSON.stringify(walletData))
-
+            console.log(privateKey)
+            const walletInfo = await axios.post(`${apiTest}/wallets?token=${process.env.BLOCKCYPHER_TOKEN}`, JSON.stringify(walletData))
             // save the user's wallet info to the database for future reference
-            const insertWalletPK = 'UPDATE users SET wallet_address=$1, wallet_pk=$2, wallet_public=$3 WHERE username=$4';
-            const insertWalletPKValues = [address, privateKey, publicKey, name];
+            const insertWalletPK = 'UPDATE users SET wallet_address=$1, wallet_pk=$2 WHERE username=$3';
+            const insertWalletPKValues = [address, privateKey, name];
             const result = await pool.query(insertWalletPK, insertWalletPKValues);
             btcLogger.info(`Wallet generated for ${name}`);
-            res.json({ message: 'Wallet Successfully Created', status: 200 }).end();
+            res.json({ message: 'Wallet Successfully Created', status: 200 });
         } catch (err) {
-            userLogger.error(`Wallet name already exists: ${err}`);
+            btcLogger.error(`Wallet name already exists: ${err}`);
             res.json({ message: "That name is taken, choose another", error: err.message, status: 409 });
         }
     } catch (error) {

@@ -1,6 +1,6 @@
+"use strict";
 const jwt = require('jsonwebtoken');
 const {pool} = require('../database_connection/pool');
-let refreshTokens = [];
 
 function authenticateJWT(req, res, next) {
     // grab the authorization header
@@ -13,6 +13,7 @@ function authenticateJWT(req, res, next) {
         jwt.verify(token, process.env.ACCESSTOKENSECRET, (err, user) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
+                console.log(err)
                 return res.sendStatus(403);
             }
             // if the token is valid, attach the user and continue the request
@@ -26,34 +27,42 @@ function authenticateJWT(req, res, next) {
 };
 
 function generateTokens(username) {
-    console.log(username)
     // Generate an access & refresh token
-    const accessToken = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '3m' });
-    const refreshToken = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '10m' });
+    const accessToken = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
+    const refreshToken = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
 
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken }
 }
 
-function refreshOldToken(token) {
+async function refreshOldToken(token) {
     if (!token) {
         return 401;
     }
-
-    if (!refreshTokens.includes(token)) {
-        return 403;
-    }
     // find the user's refresh token in the database
-    jwt.verify(token, process.env.REFRESHTOKENSECRET, (err, user) => {
-        if (err) {
-            return 403;
-        } else {
-
-            const accessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '1m' });
-
-            return accessToken
+    const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
+    const findRefreshValues = [token]
+    try {
+        const {refresh_token} = (await pool.query(findRefresh, findRefreshValues)).rows[0];
+        if (!refresh_token) {
+            return 403
         }
-    });
+        const user = await jwt.verify(token, process.env.REFRESHTOKENSECRET);
+        const accessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '10m' });
+        // save the user's new access token to the db
+        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
+        const insertAccessTokenQueryValues = [accessToken, token];
+        try {
+            const tokenInserted = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+            console.log(tokenInserted)
+            return accessToken
+        } catch(err) {
+            console.log(err)
+            return 500
+        }
+    } catch(dbError) {
+        return 500
+    }
 }
 
 

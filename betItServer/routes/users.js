@@ -24,7 +24,7 @@ router.post('/register', async (req, res, next) => {
       const insertUserQuery = 'INSERT INTO users(username, password, email) VALUES($1, $2, $3) RETURNING *';
       const queryValues = [username, hash, email];
 
-      const userInserted = await pool.query(insertUserQuery, queryValues);
+      await pool.query(insertUserQuery, queryValues);
       userLogger.info(`User created: ${username}`);
       return res.sendStatus(200);
     } catch (insertError) {
@@ -72,15 +72,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/refresh-token', (req, res) => {
+router.post('/refresh-token', async (req, res) => {
   const { token } = req.body;
-  const result = tokenHandler.refreshOldToken(token)
-  if (typeof newAccessToken === 'string') {
+  const result = await tokenHandler.refreshOldToken(token);
+  if (typeof result === 'string') {
     res.json({
       result
     });
   } else {
-    res.status(result)
+    res.sendStatus(result)
   }
 });
 
