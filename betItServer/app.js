@@ -6,6 +6,7 @@ let logger = require('morgan');
 let fs = require('fs')
 let indexRouter = require('./routes/index');
 let usersRouter = require('./routes/users');
+let sportsHandler = require('./routes/sports');
 let walletHandler = require('./routes/wallet_routes');
 let {authenticateToken} = require('./tokens/token_auth');
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/btc-handler', authenticateToken, walletHandler);
+app.use('/sports-handler', authenticateToken, sportsHandler);
 app.use('/users', usersRouter);
 
 module.exports = app;

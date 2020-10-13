@@ -1,6 +1,8 @@
 "use strict";
 const jwt = require('jsonwebtoken');
-const {pool} = require('../database_connection/pool');
+const { pool } = require('../database_connection/pool');
+const { userLogger } = require('../loggerSetup/logSetup');
+const { unsubscribe } = require('../routes/users');
 
 function authenticateJWT(req, res, next) {
     // grab the authorization header
@@ -13,7 +15,7 @@ function authenticateJWT(req, res, next) {
         jwt.verify(token, process.env.ACCESSTOKENSECRET, (err, user) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
-                console.log(err)
+                userLogger.warn("Invalid access token attempted: " + err)
                 return res.sendStatus(403);
             }
             // if the token is valid, attach the user and continue the request
@@ -22,6 +24,7 @@ function authenticateJWT(req, res, next) {
         });
     } else {
         // if no auth header, show an unauthorized code
+        userLogger.error("Unauthorized access attempted. No auth header present");
         res.sendStatus(401);
     }
 };
@@ -48,7 +51,7 @@ async function refreshOldToken(token) {
             return 403
         }
         const user = await jwt.verify(token, process.env.REFRESHTOKENSECRET);
-        const accessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '10m' });
+        const accessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '30m' });
         // save the user's new access token to the db
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
         const insertAccessTokenQueryValues = [accessToken, token];

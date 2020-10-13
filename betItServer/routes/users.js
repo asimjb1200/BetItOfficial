@@ -1,14 +1,15 @@
 "use strict";
 let express = require('express');
 const bcrypt = require('bcrypt');
+const isEmail = require('email-validator');
 const saltRounds = 10;
 const { pool } = require('../database_connection/pool');
 let tokenHandler = require('../tokens/token_auth');
 const { userLogger } = require('../loggerSetup/logSetup');
 const {authenticateToken} = require('../tokens/token_auth');
-var router = express.Router();
+let router = express.Router();
 
-/* GET users listing. */
+/* check your token */
 router.get('/check-token', authenticateToken, function (req, res, next) {
   res.send({message: 'Access Token Valid', status: 200});
 });
@@ -18,8 +19,8 @@ router.post('/register', async (req, res, next) => {
   const { username, password, email } = req.body;
 
   try {
-    const hash = await bcrypt.hash(password, saltRounds);
-    try {
+    if (isEmail.validate(email)) {
+      const hash = await bcrypt.hash(password, saltRounds);
       // now post the user to the database
       const insertUserQuery = 'INSERT INTO users(username, password, email) VALUES($1, $2, $3) RETURNING *';
       const queryValues = [username, hash, email];
@@ -27,13 +28,12 @@ router.post('/register', async (req, res, next) => {
       await pool.query(insertUserQuery, queryValues);
       userLogger.info(`User created: ${username}`);
       return res.sendStatus(200);
-    } catch (insertError) {
-      userLogger.error("Couldn't save user: " + insertError)
-      res.json({message: "Couldn't save user", status: 500})
+    } else {
+      throw e
     }
   } catch (error) {
-    console.log('couldnt hash password')
-    res.sendStatus(500)
+    userLogger.error("Error when trying to create hash of user's password: " + error);
+    res.sendStatus(500);
   }
 });
 
@@ -65,10 +65,12 @@ router.post('/login', async (req, res) => {
         res.sendStatus(500)
       }
     } else {
+      userLogger.error(`Bad password attempted for user: ${username}`);
       res.send("not a match")
     }
   } catch (loginError) {
-    userLogger.error("Couldn't retrieve the user: " + loginError);
+    userLogger.error("Couldn't log the user in: " + loginError);
+    res.sendStatus(500);
   }
 });
 
@@ -84,10 +86,19 @@ router.post('/refresh-token', async (req, res) => {
   }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   const { token } = req.body;
-  refreshTokens = refreshTokens.filter(t => t !== token);
-  res.send("Logout successful");
+  // delete the user's refresh token and access token from the database
+  const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
+  const deleteQueryValues = [token];
+
+  try {
+    const queryComplete = await pool.query(deleteQuery, deleteQueryValues);
+    res.json({message: "User logged out", status: 200});
+  } catch (error) {
+    userLogger.error(`Error when logging user out: ${error}`);
+    res.json({message: "User logged out", status: 200});
+  }
 });
 
 module.exports = router;

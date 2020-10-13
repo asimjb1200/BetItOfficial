@@ -68,7 +68,6 @@ router.post('/create-wallet/:userName', async (req, res) => {
         const privateKey = addrInfo.data.private;
         // dont need the public key if I have the address, serves the same purpose
         const {address} = addrInfo.data.address;
-        console.log(addrInfo.data)
 
         // get the address ready to generate a wallet for the user
         let walletData = {
@@ -77,27 +76,26 @@ router.post('/create-wallet/:userName', async (req, res) => {
         }
 
         try {
-            console.log(privateKey)
-            const walletInfo = await axios.post(`${apiTest}/wallets?token=${process.env.BLOCKCYPHER_TOKEN}`, JSON.stringify(walletData))
-            // save the user's wallet info to the database for future reference
+            const walletInfo = await axios.post(`${apiTest}/wallets?token=${process.env.BLOCKCYPHER_TOKEN}`, walletData)
             const insertWalletPK = 'UPDATE users SET wallet_address=$1, wallet_pk=$2 WHERE username=$3';
             const insertWalletPKValues = [address, privateKey, name];
             const result = await pool.query(insertWalletPK, insertWalletPKValues);
             btcLogger.info(`Wallet generated for ${name}`);
             res.json({ message: 'Wallet Successfully Created', status: 200 });
         } catch (err) {
-            btcLogger.error(`Wallet name already exists: ${err}`);
-            res.json({ message: "That name is taken, choose another", error: err.message, status: 409 });
+            console.log(err.response.data)
+            btcLogger.error(`Issue creating wallet: '${err.response.config.method}', '${err.response.config.data}',  '${err.response.config.url}',  '${err.response.data.error}'`);
+            res.json({ message: "Issue creating wallet", error: err.message, status: 409 });
         }
     } catch (error) {
-        btcLogger(`Network error occurred while generating wallet: ${error}`);
+        btcLogger.error(`Network error occurred while generating wallet: ${error}`);
         res.end('Network error, try again later');
     }
 })
 
 router.get('/fund-master-wallet', (req, res) => {
     // Fund prior address with faucet
-    var data = { "address": sendingWalletAddr, "amount": 100000 }
+    let data = { "address": sendingWalletAddr, "amount": 100000 }
     axios.post(`${apiTest}/faucet?token=${process.env.BLOCKCYPHER_TOKEN}`, JSON.stringify(data))
         .then(function (d) {
             console.log(d)
