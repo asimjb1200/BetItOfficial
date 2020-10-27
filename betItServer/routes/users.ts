@@ -1,5 +1,6 @@
-"use strict";
+export {};
 let express = require('express');
+import { Request, Response, NextFunction } from 'express';
 const bcrypt = require('bcrypt');
 const isEmail = require('email-validator');
 const saltRounds = 10;
@@ -10,12 +11,12 @@ const {authenticateToken} = require('../tokens/token_auth');
 let router = express.Router();
 
 /* check your token */
-router.get('/check-token', authenticateToken, function (req, res, next) {
+router.get('/check-token', authenticateToken, function (req: any, res: any, next: any) {
   res.send({message: 'Access Token Valid', status: 200});
 });
 
 /* Register a user */
-router.post('/register', async (req, res, next) => {
+router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
   const { username, password, email } = req.body;
 
   try {
@@ -29,7 +30,7 @@ router.post('/register', async (req, res, next) => {
       userLogger.info(`User created: ${username}`);
       return res.sendStatus(200);
     } else {
-      throw e
+      throw new Error()
     }
   } catch (error) {
     userLogger.error("Error when trying to create hash of user's password: " + error);
@@ -37,7 +38,7 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: any, res: any) => {
   // Read username and password from request body
   const { username, password } = req.body;
   const findUserQuery = 'SELECT password, username FROM users WHERE username = $1';
@@ -74,7 +75,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/refresh-token', async (req, res) => {
+router.post('/refresh-token', async (req: any, res: any) => {
   const { token } = req.body;
   const result = await tokenHandler.refreshOldToken(token);
   if (typeof result === 'string') {
@@ -86,7 +87,7 @@ router.post('/refresh-token', async (req, res) => {
   }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req: Request, res: Response) => {
   const { token } = req.body;
   // delete the user's refresh token and access token from the database
   const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';

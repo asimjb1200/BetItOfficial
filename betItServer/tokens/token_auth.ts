@@ -1,10 +1,11 @@
 "use strict";
 const jwt = require('jsonwebtoken');
+import { Request, Response, NextFunction } from 'express';
 const { pool } = require('../database_connection/pool');
 const { userLogger } = require('../loggerSetup/logSetup');
 const { unsubscribe } = require('../routes/users');
 
-function authenticateJWT(req, res, next) {
+function authenticateJWT(req: any, res: Response, next: NextFunction) {
     // grab the authorization header
     const authHeader = req.headers.authorization;
 
@@ -12,7 +13,7 @@ function authenticateJWT(req, res, next) {
         // if it exists, split it on the space to get the tokem
         const token = authHeader.split(' ')[1];
 
-        jwt.verify(token, process.env.ACCESSTOKENSECRET, (err, user) => {
+        jwt.verify(token, process.env.ACCESSTOKENSECRET, (err: any, user: any) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
                 userLogger.warn("Invalid access token attempted: " + err)
@@ -29,7 +30,7 @@ function authenticateJWT(req, res, next) {
     }
 };
 
-function generateTokens(username) {
+function generateTokens(username: string) {
     // Generate an access & refresh token
     const accessToken = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
     const refreshToken = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
@@ -38,7 +39,7 @@ function generateTokens(username) {
     return { "accessToken": accessToken, "refreshToken": refreshToken }
 }
 
-async function refreshOldToken(token) {
+async function refreshOldToken(token: string) {
     if (!token) {
         return 401;
     }

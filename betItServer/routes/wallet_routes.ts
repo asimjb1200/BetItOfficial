@@ -1,11 +1,12 @@
-"use strict";
+export {};
+import { Request, Response } from 'express';
 let express = require('express');
 const fclone = require('fclone');
 let bitcoin = require("bitcoinjs-lib");
-const bcrypt = require('bcrypt');
+// const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const { pool } = require('../database_connection/pool');
-const { btcLogger, userLogger } = require('../loggerSetup/logSetup');
+const { btcLogger, mainLogger } = require('../loggerSetup/logSetup');
 const currentNetwork = bitcoin.networks.testnet;
 const axios = require('axios');
 const apiMain = 'https://api.blockcypher.com/v1/btc/main';
@@ -13,7 +14,7 @@ const apiTest = 'https://api.blockcypher.com/v1/bcy/test';
 const {encryptKey, decryptKey} = require('./encrypt');
 let router = express.Router();
 
-async function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
+async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey: string, amount: number) {
     // construct the transaction message
     let newtx = {
         inputs: [{ addresses: [senderAddr] }],
@@ -25,10 +26,10 @@ async function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
     let keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, currentNetwork)
 
     axios.post(`${apiTest}/txs/new`, JSON.stringify(newtx))
-        .then((tmptx) => {
+        .then((tmptx: any) => {
             // signing each of the hex-encoded string required to finalize the transaction
             tmptx.data.pubkeys = [];
-            tmptx.data.signatures = tmptx.data.tosign.map(function (tosign, n) {
+            tmptx.data.signatures = tmptx.data.tosign.map(function (tosign: any, n: any) {
                 tmptx.data.pubkeys.push(keys.publicKey.toString('hex'));
 
                 return bitcoin.script.signature.encode(
@@ -48,32 +49,31 @@ async function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
             };
 
             // sending back the transaction with all the signatures to broadcast
-            axios.post(`${apiTest}/txs/send`, sendtx).then(finaltx => {
+            axios.post(`${apiTest}/txs/send`, JSON.stringify(sendtx)).then((finaltx: any) => {
                 console.log(finaltx);
                 return 'Transaction has Began'
-            }).catch(err => {
+            }).catch((err: any) => {
                 console.log(err)
             });
-        }).catch(err => {
+        }).catch((err: any) => {
             console.log(err)
         });
 }
 
-router.post('/test-encryption/:pw', async (req, res) => {
+router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
     const encryptedText = encryptKey(plainPrivateKey);
     res.send(encryptedText);
 });
 
-router.post('/test-decryption/:pw', async (req, res) => {
+router.post('/test-decryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
     const decryptedText = decryptKey(plainPrivateKey);
     res.send(decryptedText);
 });
 
-router.post('/create-wallet/:userName', async (req, res) => {
+router.post('/create-wallet/:userName', async (req: Request, res: Response) => {
     const name = req.params.userName;
-
     try {
         // first generate an address for the user and pull out the data
         let addrInfo = await axios.post(`${apiTest}/addrs`, '');
@@ -107,43 +107,49 @@ router.post('/create-wallet/:userName', async (req, res) => {
     }
 })
 
-router.get('/fund-master-wallet', (req, res) => {
+router.get('/fund-master-wallet', (req: Request, res: Response) => {
     // Fund prior address with faucet
-    let data = { "address": sendingWalletAddr, "amount": 100000 }
+    let data = { "address": "12343", "amount": 100000 }
     axios.post(`${apiTest}/faucet?token=${process.env.BLOCKCYPHER_TOKEN}`, JSON.stringify(data))
-        .then(function (d) {
+        .then(function (d: any) {
             console.log(d)
             res.end('Wallet successfully funded')
         });
 })
 
-router.post('/send-to-escrow', async (req, res) => {
+router.post('/send-to-escrow', async (req: Request, res: Response) => {
     const { user1, user2, wagerAmount } = req.body;
-    // look up the user's private key in the database
-    const lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
-    const lookupValues = [user1, user2]
-    const walletInfo = await pool.query(lookupKeyQuery, lookupValues);
 
-    const user1_encryptedPrivateKey = walletInfo.rows[0].wallet_pk;
-    const user1_walletAddr = walletInfo.rows[0].wallet_address;
+    try {
+        // look up the user's private key in the database
+        const lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
+        const lookupValues = [user1, user2]
+        const walletInfo = await pool.query(lookupKeyQuery, lookupValues);
 
-    const user2_encryptedPrivateKey = walletInfo.rows[1].wallet_pk;
-    const user2_walletAddr = walletInfo.rows[1].wallet_address;
+        const user1_encryptedPrivateKey = walletInfo.rows[0].wallet_pk;
+        const user1_walletAddr = walletInfo.rows[0].wallet_address;
 
-    // undo the encryptions and then begin the transaction process
-    const user1_plainPrivateKey = decryptKey(user1_encryptedPrivateKey);
-    const user2_plainPrivateKey = decryptKey(user2_encryptedPrivateKey);
+        const user2_encryptedPrivateKey = walletInfo.rows[1].wallet_pk;
+        const user2_walletAddr = walletInfo.rows[1].wallet_address;
 
-    // Asynchronously call the send coins function to begin the transaction for both wallets into escrow
-    let result1 = await sendCoins(user1_walletAddr, process.env.MASTERWALLERADDRESS, user1_plainPrivateKey, wagerAmount);
-    let result2 = await sendCoins(user2_walletAddr, process.env.MASTERWALLERADDRESS, user2_plainPrivateKey, wagerAmount);
+        // undo the encryptions and then begin the transaction process
+        const user1_plainPrivateKey = decryptKey(user1_encryptedPrivateKey);
+        const user2_plainPrivateKey = decryptKey(user2_encryptedPrivateKey);
+        // Asynchronously call the send coins function to begin the transaction for both wallets into escrow
+        let result1 = await sendCoins(user1_walletAddr, 'BwkDigsf8pBsk2BwpPWD9KTMzoQGcxbxnA', user1_plainPrivateKey, wagerAmount);
+        let result2 = await sendCoins(user2_walletAddr, 'BwkDigsf8pBsk2BwpPWD9KTMzoQGcxbxnA', user2_plainPrivateKey, wagerAmount);
+        res.send('Transaction has began');
+    } catch (error) {
+        console.log(error);
+        res.json({message: 'failed terribly'})
+    }
 });
 
-router.get('/pay-winner/:user', (req, res) => {
+router.get('/pay-winner/:user', (req: Request, res: Response) => {
 
 })
 
-router.get('/get-my-address/:user', (req, res) => {
+router.get('/get-my-address/:user', (req: Request, res: Response) => {
 
 })
 
