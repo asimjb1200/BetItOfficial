@@ -1,2 +1,4 @@
 betItServer/node_modules
 betItServer/build
+betItServer/.env
+
