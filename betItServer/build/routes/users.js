@@ -40,13 +40,13 @@ var express = require('express');
 var bcrypt = require('bcrypt');
 var isEmail = require('email-validator');
 var saltRounds = 10;
-var pool = require('../database_connection/pool').pool;
+var pool_1 = require("../database_connection/pool");
 var tokenHandler = require('../tokens/token_auth');
 var userLogger = require('../loggerSetup/logSetup').userLogger;
-var authenticateToken = require('../tokens/token_auth').authenticateToken;
+var token_auth_1 = require("../tokens/token_auth");
 var router = express.Router();
 /* check your token */
-router.get('/check-token', authenticateToken, function (req, res, next) {
+router.get('/check-token', token_auth_1.authenticateJWT, function (req, res, next) {
     res.send({ message: 'Access Token Valid', status: 200 });
 });
 /* Register a user */
@@ -65,7 +65,7 @@ router.post('/register', function (req, res, next) { return __awaiter(void 0, vo
                 hash = _b.sent();
                 insertUserQuery = 'INSERT INTO users(username, password, email) VALUES($1, $2, $3) RETURNING *';
                 queryValues = [username, hash, email];
-                return [4 /*yield*/, pool.query(insertUserQuery, queryValues)];
+                return [4 /*yield*/, pool_1.pool.query(insertUserQuery, queryValues)];
             case 3:
                 _b.sent();
                 userLogger.info("User created: " + username);
@@ -92,7 +92,7 @@ router.post('/login', function (req, res) { return __awaiter(void 0, void 0, voi
                 _c.label = 1;
             case 1:
                 _c.trys.push([1, 10, , 11]);
-                return [4 /*yield*/, pool.query(findUserQuery, queryValues)];
+                return [4 /*yield*/, pool_1.pool.query(findUserQuery, queryValues)];
             case 2:
                 user = _c.sent();
                 return [4 /*yield*/, bcrypt.compare(password, user.rows[0].password)];
@@ -105,7 +105,7 @@ router.post('/login', function (req, res) { return __awaiter(void 0, void 0, voi
                 _c.label = 4;
             case 4:
                 _c.trys.push([4, 6, , 7]);
-                return [4 /*yield*/, pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues)];
+                return [4 /*yield*/, pool_1.pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues)];
             case 5:
                 insertTokensResult = _c.sent();
                 // return the access and refresh token to the client for usage later
@@ -140,7 +140,7 @@ router.post('/refresh-token', function (req, res) { return __awaiter(void 0, voi
         switch (_a.label) {
             case 0:
                 token = req.body.token;
-                return [4 /*yield*/, tokenHandler.refreshOldToken(token)];
+                return [4 /*yield*/, token_auth_1.refreshOldToken(token)];
             case 1:
                 result = _a.sent();
                 if (typeof result === 'string') {
@@ -166,7 +166,7 @@ router.post('/logout', function (req, res) { return __awaiter(void 0, void 0, vo
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 3, , 4]);
-                return [4 /*yield*/, pool.query(deleteQuery, deleteQueryValues)];
+                return [4 /*yield*/, pool_1.pool.query(deleteQuery, deleteQueryValues)];
             case 2:
                 queryComplete = _a.sent();
                 res.json({ message: "User logged out", status: 200 });

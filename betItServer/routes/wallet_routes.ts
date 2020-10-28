@@ -1,11 +1,12 @@
 export {};
 import { Request, Response } from 'express';
-let express = require('express');
-const fclone = require('fclone');
-let bitcoin = require("bitcoinjs-lib");
+import {WalletInformation, NewTransaction} from '../models/dataModels';
+import * as express from 'express';
+import fclone from 'fclone';
+import * as bitcoin from "bitcoinjs-lib";
 // const bcrypt = require('bcrypt');
 const saltRounds = 10;
-const { pool } = require('../database_connection/pool');
+import { pool } from '../database_connection/pool';
 const { btcLogger, mainLogger } = require('../loggerSetup/logSetup');
 const currentNetwork = bitcoin.networks.testnet;
 const axios = require('axios');
@@ -16,14 +17,14 @@ let router = express.Router();
 
 async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey: string, amount: number) {
     // construct the transaction message
-    let newtx = {
+    let newtx: NewTransaction = {
         inputs: [{ addresses: [senderAddr] }],
         outputs: [{ addresses: [receiverAddr], value: amount }]
     };
 
     // import private key of address I want to transfer coins from
     const keyBuffer = Buffer.from(senderPrivKey, 'hex')
-    let keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, currentNetwork)
+    let keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, {network: currentNetwork})
 
     axios.post(`${apiTest}/txs/new`, JSON.stringify(newtx))
         .then((tmptx: any) => {
@@ -76,7 +77,7 @@ router.post('/create-wallet/:userName', async (req: Request, res: Response) => {
     const name = req.params.userName;
     try {
         // first generate an address for the user and pull out the data
-        let addrInfo = await axios.post(`${apiTest}/addrs`, '');
+        let addrInfo: WalletInformation = await axios.post(`${apiTest}/addrs`, '');
 
         // const { privateKey, publicKey, address, wif } = addrInfo.data;
         const privateKey = addrInfo.data.private;
@@ -152,6 +153,5 @@ router.get('/pay-winner/:user', (req: Request, res: Response) => {
 router.get('/get-my-address/:user', (req: Request, res: Response) => {
 
 })
-
 
 module.exports = router;

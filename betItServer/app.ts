@@ -8,7 +8,7 @@ let indexRouter = require('./routes/index');
 let usersRouter = require('./routes/users');
 let sportsHandler = require('./routes/sports');
 let walletHandler = require('./routes/wallet_routes');
-let {authenticateToken} = require('./tokens/token_auth');
+import {authenticateJWT} from './tokens/token_auth';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
 let app = express();
 
@@ -21,8 +21,8 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/btc-handler', walletHandler);
-app.use('/sports-handler', authenticateToken, sportsHandler);
+app.use('/btc-handler', authenticateJWT, walletHandler);
+app.use('/sports-handler', authenticateJWT, sportsHandler);
 app.use('/users', usersRouter);
 
 module.exports = app;

@@ -1,13 +1,13 @@
 "use strict";
 const jwt = require('jsonwebtoken');
 import { Request, Response, NextFunction } from 'express';
-const { pool } = require('../database_connection/pool');
+import { pool } from '../database_connection/pool';
 const { userLogger } = require('../loggerSetup/logSetup');
 const { unsubscribe } = require('../routes/users');
 
-function authenticateJWT(req: any, res: Response, next: NextFunction) {
+export function authenticateJWT(req: any, res: Response, next: NextFunction): void {
     // grab the authorization header
-    const authHeader = req.headers.authorization;
+    const authHeader: string = req.headers.authorization;
 
     if (authHeader) {
         // if it exists, split it on the space to get the tokem
@@ -30,7 +30,7 @@ function authenticateJWT(req: any, res: Response, next: NextFunction) {
     }
 };
 
-function generateTokens(username: string) {
+export function generateTokens(username: string): {accessToken: string, refreshToken: string} {
     // Generate an access & refresh token
     const accessToken = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
     const refreshToken = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
@@ -39,7 +39,7 @@ function generateTokens(username: string) {
     return { "accessToken": accessToken, "refreshToken": refreshToken }
 }
 
-async function refreshOldToken(token: string) {
+export async function refreshOldToken(token: string): Promise<string|number> {
     if (!token) {
         return 401;
     }
@@ -72,6 +72,6 @@ async function refreshOldToken(token: string) {
 
 
 
-exports.authenticateToken = authenticateJWT;
-exports.generateTokens = generateTokens;
-exports.refreshOldToken = refreshOldToken;
+// exports.authenticateToken = authenticateJWT;
+// exports.generateTokens = generateTokens;
+// exports.refreshOldToken = refreshOldToken;

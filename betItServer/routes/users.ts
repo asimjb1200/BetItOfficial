@@ -1,17 +1,18 @@
 export {};
 let express = require('express');
 import { Request, Response, NextFunction } from 'express';
+import { DatabaseUserModel, UserModel } from '../models/dataModels';
 const bcrypt = require('bcrypt');
 const isEmail = require('email-validator');
 const saltRounds = 10;
-const { pool } = require('../database_connection/pool');
+import {pool} from '../database_connection/pool';
 let tokenHandler = require('../tokens/token_auth');
 const { userLogger } = require('../loggerSetup/logSetup');
-const {authenticateToken} = require('../tokens/token_auth');
+import {authenticateJWT, refreshOldToken} from '../tokens/token_auth';
 let router = express.Router();
 
 /* check your token */
-router.get('/check-token', authenticateToken, function (req: any, res: any, next: any) {
+router.get('/check-token', authenticateJWT, function (req: Request, res: Response, next: any) {
   res.send({message: 'Access Token Valid', status: 200});
 });
 
@@ -38,7 +39,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-router.post('/login', async (req: any, res: any) => {
+router.post('/login', async (req: Request, res: Response) => {
   // Read username and password from request body
   const { username, password } = req.body;
   const findUserQuery = 'SELECT password, username FROM users WHERE username = $1';
@@ -46,7 +47,7 @@ router.post('/login', async (req: any, res: any) => {
 
   try {
     // can't do anything without the pw so I'll wait on it
-    const user = await pool.query(findUserQuery, queryValues);
+    const user: DatabaseUserModel = await pool.query(findUserQuery, queryValues);
     // compare the pw to the hash I have in the db
     const isMatch = await bcrypt.compare(password, user.rows[0].password);
     if (isMatch) {
@@ -75,9 +76,9 @@ router.post('/login', async (req: any, res: any) => {
   }
 });
 
-router.post('/refresh-token', async (req: any, res: any) => {
+router.post('/refresh-token', async (req: Request, res: Response) => {
   const { token } = req.body;
-  const result = await tokenHandler.refreshOldToken(token);
+  const result = await refreshOldToken(token);
   if (typeof result === 'string') {
     res.json({
       result

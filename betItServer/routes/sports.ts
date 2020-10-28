@@ -1,5 +1,5 @@
 export {};
-let express = require('express');
+import * as express from 'express';
 const axios = require('axios');
 let router = express.Router();
 

@@ -1,4 +1,23 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,13 +54,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-var express = require('express');
-var fclone = require('fclone');
-var bitcoin = require("bitcoinjs-lib");
+var express = __importStar(require("express"));
+var fclone_1 = __importDefault(require("fclone"));
+var bitcoin = __importStar(require("bitcoinjs-lib"));
 // const bcrypt = require('bcrypt');
 var saltRounds = 10;
-var pool = require('../database_connection/pool').pool;
+var pool_1 = require("../database_connection/pool");
 var _a = require('../loggerSetup/logSetup'), btcLogger = _a.btcLogger, mainLogger = _a.mainLogger;
 var currentNetwork = bitcoin.networks.testnet;
 var axios = require('axios');
@@ -58,7 +80,7 @@ function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
                 outputs: [{ addresses: [receiverAddr], value: amount }]
             };
             keyBuffer = Buffer.from(senderPrivKey, 'hex');
-            keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, currentNetwork);
+            keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, { network: currentNetwork });
             axios.post(apiTest + "/txs/new", JSON.stringify(newtx))
                 .then(function (tmptx) {
                 // signing each of the hex-encoded string required to finalize the transaction
@@ -68,7 +90,7 @@ function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
                     return bitcoin.script.signature.encode(keys.sign(Buffer.from(tosign, "hex")), 0x01).toString("hex").slice(0, -2);
                 });
                 // remove circular references in the object
-                var circularsRemoved = fclone(tmptx);
+                var circularsRemoved = fclone_1.default(tmptx);
                 var sendtx = {
                     tx: circularsRemoved.data.tx,
                     tosign: circularsRemoved.data.tosign,
@@ -134,7 +156,7 @@ router.post('/create-wallet/:userName', function (req, res) { return __awaiter(v
                 encryptedPrivateKey = encryptKey(privateKey);
                 insertWalletPK = 'UPDATE users SET wallet_address=$1, wallet_pk=$2 WHERE username=$3';
                 insertWalletPKValues = [address, encryptedPrivateKey, name];
-                return [4 /*yield*/, pool.query(insertWalletPK, insertWalletPKValues)];
+                return [4 /*yield*/, pool_1.pool.query(insertWalletPK, insertWalletPKValues)];
             case 5:
                 result = _a.sent();
                 btcLogger.info("Wallet generated for " + name);
@@ -175,7 +197,7 @@ router.post('/send-to-escrow', function (req, res) { return __awaiter(void 0, vo
                 _b.trys.push([1, 5, , 6]);
                 lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
                 lookupValues = [user1, user2];
-                return [4 /*yield*/, pool.query(lookupKeyQuery, lookupValues)];
+                return [4 /*yield*/, pool_1.pool.query(lookupKeyQuery, lookupValues)];
             case 2:
                 walletInfo = _b.sent();
                 user1_encryptedPrivateKey = walletInfo.rows[0].wallet_pk;

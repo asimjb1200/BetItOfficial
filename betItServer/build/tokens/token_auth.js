@@ -36,8 +36,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.refreshOldToken = exports.generateTokens = exports.authenticateJWT = void 0;
 var jwt = require('jsonwebtoken');
-var pool = require('../database_connection/pool').pool;
+var pool_1 = require("../database_connection/pool");
 var userLogger = require('../loggerSetup/logSetup').userLogger;
 var unsubscribe = require('../routes/users').unsubscribe;
 function authenticateJWT(req, res, next) {
@@ -63,6 +64,7 @@ function authenticateJWT(req, res, next) {
         res.sendStatus(401);
     }
 }
+exports.authenticateJWT = authenticateJWT;
 ;
 function generateTokens(username) {
     // Generate an access & refresh token
@@ -71,6 +73,7 @@ function generateTokens(username) {
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken };
 }
+exports.generateTokens = generateTokens;
 function refreshOldToken(token) {
     return __awaiter(this, void 0, void 0, function () {
         var findRefresh, findRefreshValues, refresh_token, user, accessToken, insertAccessTokenQuery, insertAccessTokenQueryValues, tokenInserted, err_1, dbError_1;
@@ -85,7 +88,7 @@ function refreshOldToken(token) {
                     _a.label = 1;
                 case 1:
                     _a.trys.push([1, 8, , 9]);
-                    return [4 /*yield*/, pool.query(findRefresh, findRefreshValues)];
+                    return [4 /*yield*/, pool_1.pool.query(findRefresh, findRefreshValues)];
                 case 2:
                     refresh_token = (_a.sent()).rows[0].refresh_token;
                     if (!refresh_token) {
@@ -100,7 +103,7 @@ function refreshOldToken(token) {
                     _a.label = 4;
                 case 4:
                     _a.trys.push([4, 6, , 7]);
-                    return [4 /*yield*/, pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues)];
+                    return [4 /*yield*/, pool_1.pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues)];
                 case 5:
                     tokenInserted = _a.sent();
                     console.log(tokenInserted);
@@ -118,6 +121,4 @@ function refreshOldToken(token) {
         });
     });
 }
-exports.authenticateToken = authenticateJWT;
-exports.generateTokens = generateTokens;
 exports.refreshOldToken = refreshOldToken;

@@ -1,0 +1,50 @@
+[2020-10-06T15:02:21.475] [DEBUG] userErrors - User Logger Working
+[2020-10-06T15:21:22.712] [DEBUG] userErrors - new User Logger Working
+[2020-10-06T15:30:36.055] [ERROR] userErrors - Could not insert user to db: Error: connect ECONNREFUSED 127.0.0.1:5432
+[2020-10-06T15:35:43.028] [ERROR] userErrors - Could not insert user to db: Error: connect ECONNREFUSED 127.0.0.1:5432
+[2020-10-06T15:36:29.908] [ERROR] userErrors - Could not insert user to db: Error: connect ECONNREFUSED 127.0.0.1:5432
+[2020-10-06T15:59:39.459] [ERROR] userErrors - Could not connect to db: Error: connect ECONNREFUSED 127.0.0.1:5432
+[2020-10-06T16:33:21.779] [ERROR] userErrors - Could not connect to db: Error: connect ECONNREFUSED 127.0.0.1:5432
+[2020-10-07T18:16:39.453] [ERROR] userErrors - Couldn't retrieve the user: Error: data and hash arguments required
+[2020-10-07T18:19:29.276] [ERROR] userErrors - Couldn't retrieve the user: Error: data and hash arguments required
+[2020-10-07T18:22:05.651] [ERROR] userErrors - Couldn't retrieve the user: Error: data and hash arguments required
+[2020-10-07T18:23:09.127] [ERROR] userErrors - Couldn't retrieve the user: Error: data and hash arguments required
+[2020-10-07T18:24:01.620] [ERROR] userErrors - Couldn't retrieve the user: Error: data and hash arguments required
+[2020-10-07T18:26:12.301] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:28:06.403] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:29:49.564] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:30:37.950] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:32:39.015] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:34:03.081] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:35:32.339] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:37:33.867] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-07T18:59:01.855] [ERROR] userErrors - Couldn't retrieve the user: TypeError: userLogger is not a function
+[2020-10-08T15:18:59.789] [ERROR] userErrors - Couldn't retrieve the user: error: relation "users" does not exist
+[2020-10-08T15:20:04.024] [ERROR] userErrors - Couldn't retrieve the user: error: relation "users" does not exist
+[2020-10-08T15:22:01.864] [ERROR] userErrors - Couldn't retrieve the user: error: relation "users" does not exist
+[2020-10-08T15:22:50.836] [ERROR] userErrors - Couldn't retrieve the user: error: relation "users" does not exist
+[2020-10-08T16:58:10.186] [INFO] userErrors - User created: Asim1997
+[2020-10-08T16:58:29.045] [ERROR] userErrors - Couldn't retrieve the user: ReferenceError: accessTokenSecret is not defined
+[2020-10-08T16:59:34.277] [ERROR] userErrors - Couldn't retrieve the user: ReferenceError: accessTokenSecret is not defined
+[2020-10-08T17:07:22.793] [ERROR] userErrors - Wallet name already exists: error: column "wallet_public" of relation "users" does not exist
+[2020-10-08T17:09:23.472] [ERROR] userErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-08T17:09:44.992] [ERROR] userErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-09T08:58:39.535] [INFO] userErrors - User created: user2
+[2020-10-09T09:00:05.645] [ERROR] userErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-09T09:06:38.303] [INFO] userErrors - User created: user3
+[2020-10-09T09:08:27.942] [ERROR] userErrors - Wallet name already exists: error: column "wallet_public" of relation "users" does not exist
+[2020-10-09T10:38:26.177] [INFO] userErrors - User created: user4
+[2020-10-09T11:36:08.936] [INFO] userErrors - User created: user5
+[2020-10-09T11:47:00.714] [INFO] userErrors - User created: user8
+[2020-10-13T12:47:32.249] [ERROR] userErrors - Couldn't save user: ReferenceError: hash is not defined
+[2020-10-13T12:51:05.248] [INFO] userErrors - User created: user9
+[2020-10-13T12:55:52.171] [INFO] userErrors - User created: user91
+[2020-10-13T13:05:43.984] [WARN] userErrors - Invalid access token attempted: TokenExpiredError: jwt expired
+[2020-10-13T13:36:33.868] [WARN] userErrors - Invalid access token attempted: TokenExpiredError: jwt expired
+[2020-10-15T22:51:56.697] [INFO] userErrors - User created: Master
+[2020-10-15T23:01:04.451] [INFO] userErrors - User created: user1
+[2020-10-15T23:01:36.711] [INFO] userErrors - User created: user2
+[2020-10-26T22:23:37.967] [INFO] userErrors - User created: typescript
+[2020-10-26T22:27:54.783] [INFO] userErrors - User created: boibie
+[2020-10-27T20:12:12.077] [INFO] userErrors - User created: boubieLee
+[2020-10-27T20:16:00.590] [ERROR] userErrors - Unauthorized access attempted. No auth header present

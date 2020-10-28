@@ -1,0 +1,22 @@
+[2020-10-09T10:39:28.130] [INFO] btcErrors - Wallet generated for user4
+[2020-10-09T11:36:43.240] [INFO] btcErrors - Wallet generated for user5
+[2020-10-09T11:47:56.025] [INFO] btcErrors - Wallet generated for user8
+[2020-10-13T12:52:52.268] [ERROR] btcErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-13T12:55:19.092] [ERROR] btcErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-13T12:56:48.019] [ERROR] btcErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-13T13:07:07.752] [ERROR] btcErrors - Wallet name already exists: Error: Request failed with status code 409
+[2020-10-13T13:21:35.257] [INFO] btcErrors - Wallet generated for user91
+[2020-10-13T13:34:54.159] [ERROR] btcErrors - Issue creating wallet: post, {"name":"user91","addresses":[null]},  https://api.blockcypher.com/v1/bcy/test/wallets?token=32a5fb75ee814995bc45113a1bc0ff30,  Error: could not create wallet: invalid address
+[2020-10-13T13:39:22.187] [ERROR] btcErrors - Issue creating wallet: 'post', '{"name":"user91","addresses":[null]}',  'https://api.blockcypher.com/v1/bcy/test/wallets?token=32a5fb75ee814995bc45113a1bc0ff30',  'Error: could not create wallet: invalid address'
+[2020-10-14T14:35:35.871] [ERROR] btcErrors - Issue creating wallet: 'post', '{"name":"user91","addresses":["CCspuMDdc56RxB196WMqZRTGL6ZBxrEo6F"]}',  'https://api.blockcypher.com/v1/bcy/test/wallets?token=32a5fb75ee814995bc45113a1bc0ff30',  'Error: wallet exists'
+[2020-10-14T14:46:00.319] [INFO] btcErrors - Wallet generated for user92
+[2020-10-14T17:53:22.307] [ERROR] btcErrors - Error occurred while generating wallet: TypeError: Cannot read property 'config' of undefined
+[2020-10-14T17:55:14.669] [ERROR] btcErrors - Error occurred while generating wallet: TypeError: Cannot read property 'config' of undefined
+[2020-10-14T17:56:18.327] [INFO] btcErrors - Wallet generated for user95
+[2020-10-15T22:52:55.536] [ERROR] btcErrors - Issue creating wallet: 'post', '{"name":"Master","addresses":["BvrYq23RpzpjJXAAkQ3wLHnxHMSeK7MDze"]}',  'https://api.blockcypher.com/v1/bcy/test/wallets?token=32a5fb75ee814995bc45113a1bc0ff30',  'Error: wallet exists'
+[2020-10-15T22:55:35.525] [INFO] btcErrors - Wallet generated for Master
+[2020-10-15T22:58:40.709] [INFO] btcErrors - Wallet generated for Master
+[2020-10-15T23:03:14.946] [INFO] btcErrors - Wallet generated for user1
+[2020-10-15T23:03:35.994] [INFO] btcErrors - Wallet generated for user2
+[2020-10-27T20:14:01.623] [INFO] btcErrors - Wallet generated for boubieLee
+[2020-10-27T20:15:43.182] [INFO] btcErrors - Wallet generated for boubieLee1200
