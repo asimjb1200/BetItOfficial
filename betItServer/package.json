@@ -14,6 +14,7 @@
     "axios": "^0.20.0",
     "bcrypt": "^5.0.0",
     "bitcoinjs-lib": "^5.2.0",
+    "blockcypher": "^0.3.0",
     "body-parser": "^1.19.0",
     "buffer": "^5.6.0",
     "cookie-parser": "~1.4.4",

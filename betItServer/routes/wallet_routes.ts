@@ -7,9 +7,10 @@ import * as bitcoin from "bitcoinjs-lib";
 // const bcrypt = require('bcrypt');
 const saltRounds = 10;
 import { pool } from '../database_connection/pool';
+import { json } from 'body-parser';
 const { btcLogger, mainLogger } = require('../loggerSetup/logSetup');
 const currentNetwork = bitcoin.networks.testnet;
-const axios = require('axios');
+import axios from 'axios';
 const apiMain = 'https://api.blockcypher.com/v1/btc/main';
 const apiTest = 'https://api.blockcypher.com/v1/bcy/test';
 const {encryptKey, decryptKey} = require('./encrypt');
@@ -26,39 +27,39 @@ async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey
     const keyBuffer = Buffer.from(senderPrivKey, 'hex')
     let keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, {network: currentNetwork})
 
-    axios.post(`${apiTest}/txs/new`, JSON.stringify(newtx))
-        .then((tmptx: any) => {
-            // signing each of the hex-encoded string required to finalize the transaction
-            tmptx.data.pubkeys = [];
-            tmptx.data.signatures = tmptx.data.tosign.map(function (tosign: any, n: any) {
-                tmptx.data.pubkeys.push(keys.publicKey.toString('hex'));
-
-                return bitcoin.script.signature.encode(
-                    keys.sign(Buffer.from(tosign, "hex")),
-                    0x01,
-                ).toString("hex").slice(0, -2);
-            });
-
-            // remove circular references in the object
-            let circularsRemoved = fclone(tmptx)
-
-            let sendtx = {
-                tx: circularsRemoved.data.tx,
-                tosign: circularsRemoved.data.tosign,
-                signatures: circularsRemoved.data.signatures,
-                pubkeys: circularsRemoved.data.pubkeys
-            };
-
-            // sending back the transaction with all the signatures to broadcast
-            axios.post(`${apiTest}/txs/send`, JSON.stringify(sendtx)).then((finaltx: any) => {
-                console.log(finaltx);
-                return 'Transaction has Began'
-            }).catch((err: any) => {
-                console.log(err)
-            });
-        }).catch((err: any) => {
-            console.log(err)
+    try {
+        let tmptx = await axios.post(`${apiTest}/txs/new`, {
+            inputs: [{ addresses: [senderAddr] }],
+            outputs: [{ addresses: [receiverAddr], value: amount }]
         });
+        // signing each of the hex-encoded string required to finalize the transaction
+        tmptx.data.pubkeys = [];
+        tmptx.data.signatures = tmptx.data.tosign.map(function (tosign: any, n: any) {
+            tmptx.data.pubkeys.push(keys.publicKey.toString('hex'));
+            return bitcoin.script.signature.encode(
+                keys.sign(Buffer.from(tosign, "hex")),
+                0x01,
+            ).toString("hex").slice(0, -2);
+        });
+    
+        // remove circular references in the object
+        let circularsRemoved = fclone(tmptx)
+    
+        let sendtx = {
+            tx: circularsRemoved.data.tx,
+            tosign: circularsRemoved.data.tosign,
+            signatures: circularsRemoved.data.signatures,
+            pubkeys: circularsRemoved.data.pubkeys
+        };
+    
+        // sending back the transaction with all the signatures to broadcast
+        let finaltx = await axios.post(`${apiTest}/txs/send`, JSON.stringify(sendtx));
+        if (finaltx) {
+            return 200
+        }
+    } catch (err) {
+        return 500
+    }
 }
 
 router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
@@ -120,29 +121,31 @@ router.get('/fund-master-wallet', (req: Request, res: Response) => {
 
 router.post('/send-to-escrow', async (req: Request, res: Response) => {
     const { user1, user2, wagerAmount } = req.body;
-
+    // look up the user's private key in the database
+    const lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
+    const lookupValues = [user1, user2]
     try {
-        // look up the user's private key in the database
-        const lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
-        const lookupValues = [user1, user2]
         const walletInfo = await pool.query(lookupKeyQuery, lookupValues);
-
         const user1_encryptedPrivateKey = walletInfo.rows[0].wallet_pk;
         const user1_walletAddr = walletInfo.rows[0].wallet_address;
-
+    
         const user2_encryptedPrivateKey = walletInfo.rows[1].wallet_pk;
         const user2_walletAddr = walletInfo.rows[1].wallet_address;
-
+    
         // undo the encryptions and then begin the transaction process
         const user1_plainPrivateKey = decryptKey(user1_encryptedPrivateKey);
         const user2_plainPrivateKey = decryptKey(user2_encryptedPrivateKey);
+    
         // Asynchronously call the send coins function to begin the transaction for both wallets into escrow
         let result1 = await sendCoins(user1_walletAddr, 'BwkDigsf8pBsk2BwpPWD9KTMzoQGcxbxnA', user1_plainPrivateKey, wagerAmount);
         let result2 = await sendCoins(user2_walletAddr, 'BwkDigsf8pBsk2BwpPWD9KTMzoQGcxbxnA', user2_plainPrivateKey, wagerAmount);
-        res.send('Transaction has began');
+        if (result1 && result2 === 200) {
+            res.sendStatus(200);
+        } else {
+            res.sendStatus(500)
+        }
     } catch (error) {
-        console.log(error);
-        res.json({message: 'failed terribly'})
+        
     }
 });
 

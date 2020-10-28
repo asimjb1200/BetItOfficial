@@ -48,3 +48,6 @@
 [2020-10-26T22:27:54.783] [INFO] userErrors - User created: boibie
 [2020-10-27T20:12:12.077] [INFO] userErrors - User created: boubieLee
 [2020-10-27T20:16:00.590] [ERROR] userErrors - Unauthorized access attempted. No auth header present
+[2020-10-27T20:23:22.083] [WARN] userErrors - Invalid access token attempted: TokenExpiredError: jwt expired
+[2020-10-28T13:35:08.482] [ERROR] userErrors - Couldn't log the user in: TypeError: Cannot read property 'password' of undefined
+[2020-10-28T13:39:06.136] [ERROR] userErrors - Couldn't log the user in: TypeError: Cannot read property 'password' of undefined

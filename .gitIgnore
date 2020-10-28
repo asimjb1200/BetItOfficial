@@ -1,2 +1,6 @@
 betItServer/node_modules
 betItServer/build
+betItServer/build/app.js
+betItServer/build/loggerSetup/logSetup.js
+betItServer/build/logs/access.log
+betItServer/build/routes/wallet_routes.js

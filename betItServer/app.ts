@@ -21,7 +21,7 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/btc-handler', authenticateJWT, walletHandler);
+app.use('/btc-handler', walletHandler);
 app.use('/sports-handler', authenticateJWT, sportsHandler);
 app.use('/users', usersRouter);
 

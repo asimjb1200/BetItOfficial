@@ -66,48 +66,57 @@ var saltRounds = 10;
 var pool_1 = require("../database_connection/pool");
 var _a = require('../loggerSetup/logSetup'), btcLogger = _a.btcLogger, mainLogger = _a.mainLogger;
 var currentNetwork = bitcoin.networks.testnet;
-var axios = require('axios');
+var axios_1 = __importDefault(require("axios"));
 var apiMain = 'https://api.blockcypher.com/v1/btc/main';
 var apiTest = 'https://api.blockcypher.com/v1/bcy/test';
 var _b = require('./encrypt'), encryptKey = _b.encryptKey, decryptKey = _b.decryptKey;
 var router = express.Router();
 function sendCoins(senderAddr, receiverAddr, senderPrivKey, amount) {
     return __awaiter(this, void 0, void 0, function () {
-        var newtx, keyBuffer, keys;
+        var newtx, keyBuffer, keys, tmptx_1, circularsRemoved, sendtx, finaltx, err_1;
         return __generator(this, function (_a) {
-            newtx = {
-                inputs: [{ addresses: [senderAddr] }],
-                outputs: [{ addresses: [receiverAddr], value: amount }]
-            };
-            keyBuffer = Buffer.from(senderPrivKey, 'hex');
-            keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, { network: currentNetwork });
-            axios.post(apiTest + "/txs/new", JSON.stringify(newtx))
-                .then(function (tmptx) {
-                // signing each of the hex-encoded string required to finalize the transaction
-                tmptx.data.pubkeys = [];
-                tmptx.data.signatures = tmptx.data.tosign.map(function (tosign, n) {
-                    tmptx.data.pubkeys.push(keys.publicKey.toString('hex'));
-                    return bitcoin.script.signature.encode(keys.sign(Buffer.from(tosign, "hex")), 0x01).toString("hex").slice(0, -2);
-                });
-                // remove circular references in the object
-                var circularsRemoved = fclone_1.default(tmptx);
-                var sendtx = {
-                    tx: circularsRemoved.data.tx,
-                    tosign: circularsRemoved.data.tosign,
-                    signatures: circularsRemoved.data.signatures,
-                    pubkeys: circularsRemoved.data.pubkeys
-                };
-                // sending back the transaction with all the signatures to broadcast
-                axios.post(apiTest + "/txs/send", JSON.stringify(sendtx)).then(function (finaltx) {
-                    console.log(finaltx);
-                    return 'Transaction has Began';
-                }).catch(function (err) {
-                    console.log(err);
-                });
-            }).catch(function (err) {
-                console.log(err);
-            });
-            return [2 /*return*/];
+            switch (_a.label) {
+                case 0:
+                    newtx = {
+                        inputs: [{ addresses: [senderAddr] }],
+                        outputs: [{ addresses: [receiverAddr], value: amount }]
+                    };
+                    keyBuffer = Buffer.from(senderPrivKey, 'hex');
+                    keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, { network: currentNetwork });
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 4, , 5]);
+                    return [4 /*yield*/, axios_1.default.post(apiTest + "/txs/new", {
+                            inputs: [{ addresses: [senderAddr] }],
+                            outputs: [{ addresses: [receiverAddr], value: amount }]
+                        })];
+                case 2:
+                    tmptx_1 = _a.sent();
+                    // signing each of the hex-encoded string required to finalize the transaction
+                    tmptx_1.data.pubkeys = [];
+                    tmptx_1.data.signatures = tmptx_1.data.tosign.map(function (tosign, n) {
+                        tmptx_1.data.pubkeys.push(keys.publicKey.toString('hex'));
+                        return bitcoin.script.signature.encode(keys.sign(Buffer.from(tosign, "hex")), 0x01).toString("hex").slice(0, -2);
+                    });
+                    circularsRemoved = fclone_1.default(tmptx_1);
+                    sendtx = {
+                        tx: circularsRemoved.data.tx,
+                        tosign: circularsRemoved.data.tosign,
+                        signatures: circularsRemoved.data.signatures,
+                        pubkeys: circularsRemoved.data.pubkeys
+                    };
+                    return [4 /*yield*/, axios_1.default.post(apiTest + "/txs/send", JSON.stringify(sendtx))];
+                case 3:
+                    finaltx = _a.sent();
+                    if (finaltx) {
+                        return [2 /*return*/, 200];
+                    }
+                    return [3 /*break*/, 5];
+                case 4:
+                    err_1 = _a.sent();
+                    return [2 /*return*/, 500];
+                case 5: return [2 /*return*/];
+            }
         });
     });
 }
@@ -130,7 +139,7 @@ router.post('/test-decryption/:pw', function (req, res) { return __awaiter(void 
     });
 }); });
 router.post('/create-wallet/:userName', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var name, addrInfo, privateKey, address, walletData, walletInfo, encryptedPrivateKey, insertWalletPK, insertWalletPKValues, result, err_1, error_1;
+    var name, addrInfo, privateKey, address, walletData, walletInfo, encryptedPrivateKey, insertWalletPK, insertWalletPKValues, result, err_2, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -138,7 +147,7 @@ router.post('/create-wallet/:userName', function (req, res) { return __awaiter(v
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 8, , 9]);
-                return [4 /*yield*/, axios.post(apiTest + "/addrs", '')];
+                return [4 /*yield*/, axios_1.default.post(apiTest + "/addrs", '')];
             case 2:
                 addrInfo = _a.sent();
                 privateKey = addrInfo.data.private;
@@ -150,7 +159,7 @@ router.post('/create-wallet/:userName', function (req, res) { return __awaiter(v
                 _a.label = 3;
             case 3:
                 _a.trys.push([3, 6, , 7]);
-                return [4 /*yield*/, axios.post(apiTest + "/wallets?token=" + process.env.BLOCKCYPHER_TOKEN, walletData)];
+                return [4 /*yield*/, axios_1.default.post(apiTest + "/wallets?token=" + process.env.BLOCKCYPHER_TOKEN, walletData)];
             case 4:
                 walletInfo = _a.sent();
                 encryptedPrivateKey = encryptKey(privateKey);
@@ -163,9 +172,9 @@ router.post('/create-wallet/:userName', function (req, res) { return __awaiter(v
                 res.json({ message: 'Wallet Successfully Created', status: 200 });
                 return [3 /*break*/, 7];
             case 6:
-                err_1 = _a.sent();
-                btcLogger.error("Issue creating wallet: '" + err_1.response.config.method + "', '" + err_1.response.config.data + "',  '" + err_1.response.config.url + "',  '" + err_1.response.data.error + "'");
-                res.json({ message: "Issue creating wallet", error: err_1.message, status: 409 });
+                err_2 = _a.sent();
+                btcLogger.error("Issue creating wallet: '" + err_2.response.config.method + "', '" + err_2.response.config.data + "',  '" + err_2.response.config.url + "',  '" + err_2.response.data.error + "'");
+                res.json({ message: "Issue creating wallet", error: err_2.message, status: 409 });
                 return [3 /*break*/, 7];
             case 7: return [3 /*break*/, 9];
             case 8:
@@ -180,7 +189,7 @@ router.post('/create-wallet/:userName', function (req, res) { return __awaiter(v
 router.get('/fund-master-wallet', function (req, res) {
     // Fund prior address with faucet
     var data = { "address": "12343", "amount": 100000 };
-    axios.post(apiTest + "/faucet?token=" + process.env.BLOCKCYPHER_TOKEN, JSON.stringify(data))
+    axios_1.default.post(apiTest + "/faucet?token=" + process.env.BLOCKCYPHER_TOKEN, JSON.stringify(data))
         .then(function (d) {
         console.log(d);
         res.end('Wallet successfully funded');
@@ -192,11 +201,11 @@ router.post('/send-to-escrow', function (req, res) { return __awaiter(void 0, vo
         switch (_b.label) {
             case 0:
                 _a = req.body, user1 = _a.user1, user2 = _a.user2, wagerAmount = _a.wagerAmount;
+                lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
+                lookupValues = [user1, user2];
                 _b.label = 1;
             case 1:
                 _b.trys.push([1, 5, , 6]);
-                lookupKeyQuery = 'SELECT wallet_address, wallet_pk FROM users WHERE username=$1 OR username=$2';
-                lookupValues = [user1, user2];
                 return [4 /*yield*/, pool_1.pool.query(lookupKeyQuery, lookupValues)];
             case 2:
                 walletInfo = _b.sent();
@@ -212,12 +221,15 @@ router.post('/send-to-escrow', function (req, res) { return __awaiter(void 0, vo
                 return [4 /*yield*/, sendCoins(user2_walletAddr, 'BwkDigsf8pBsk2BwpPWD9KTMzoQGcxbxnA', user2_plainPrivateKey, wagerAmount)];
             case 4:
                 result2 = _b.sent();
-                res.send('Transaction has began');
+                if (result1 && result2 === 200) {
+                    res.sendStatus(200);
+                }
+                else {
+                    res.sendStatus(500);
+                }
                 return [3 /*break*/, 6];
             case 5:
                 error_2 = _b.sent();
-                console.log(error_2);
-                res.json({ message: 'failed terribly' });
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
         }

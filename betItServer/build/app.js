@@ -21,7 +21,7 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
-app.use('/btc-handler', token_auth_1.authenticateJWT, walletHandler);
+app.use('/btc-handler', walletHandler);
 app.use('/sports-handler', token_auth_1.authenticateJWT, sportsHandler);
 app.use('/users', usersRouter);
 module.exports = app;

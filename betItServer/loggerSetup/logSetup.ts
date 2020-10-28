@@ -3,10 +3,10 @@ let log4js = require("log4js");
 // set up the logger to output errors for users to a file. 10mb, rolling and 2 backups
 log4js.configure({
     appenders: {
-        userErrors: { type: "file", filename: "./logs/users/userErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
-        mainErrors: { type: "file", filename: "./logs/main/mainErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
-        sportsErrors: { type: "file", filename: "./logs/sports_api/sportsErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
-        btcErrors: { type: "file", filename: "./logs/main/btcErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        userErrors: { type: "file", filename: "build/logs/users/userErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        mainErrors: { type: "file", filename: "build/logs/main/mainErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        sportsErrors: { type: "file", filename: "build/logs/sports_api/sportsErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        btcErrors: { type: "file", filename: "build/logs/main/btcErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         console: { type: 'console' },
     },
     categories: {
