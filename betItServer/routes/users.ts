@@ -12,7 +12,7 @@ import {authenticateJWT, refreshOldToken} from '../tokens/token_auth';
 let router = express.Router();
 
 /* check your token */
-router.get('/check-token', authenticateJWT, function (req: Request, res: Response, next: any) {
+router.get('/check-token', authenticateJWT, function (req: Request, res: Response) {
   res.send({message: 'Access Token Valid', status: 200});
 });
 
@@ -63,7 +63,7 @@ router.post('/login', async (req: Request, res: Response) => {
           refreshToken
         });
       } catch (tokenSaveError) {
-        userLogger("Couldn't save the user's tokens: " + tokenSaveError)
+        userLogger(`Couldn't save the user's tokens: ${tokenSaveError}`);
         res.sendStatus(500)
       }
     } else {
@@ -71,7 +71,7 @@ router.post('/login', async (req: Request, res: Response) => {
       res.send("not a match")
     }
   } catch (loginError) {
-    userLogger.error("Couldn't log the user in: " + loginError);
+    userLogger.error(`Couldn't log the user in: ${loginError}`);
     res.sendStatus(500);
   }
 });

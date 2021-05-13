@@ -1,4 +1,5 @@
 betItServer/node_modules
 betItServer/build
 betItServer/.env
-
+betItServer/logs
+.DS_Store

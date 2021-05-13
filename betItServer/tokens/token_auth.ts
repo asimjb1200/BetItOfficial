@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../database_connection/pool';
 const { userLogger } = require('../loggerSetup/logSetup');
-const { unsubscribe } = require('../routes/users');
 
 export function authenticateJWT(req: any, res: Response, next: NextFunction): void {
     // grab the authorization header
@@ -32,34 +31,34 @@ export function authenticateJWT(req: any, res: Response, next: NextFunction): vo
 
 export function generateTokens(username: string): {accessToken: string, refreshToken: string} {
     // Generate an access & refresh token
-    const accessToken = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
-    const refreshToken = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
+    const accessToken: string = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
+    const refreshToken: string = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
 
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken }
 }
 
-export async function refreshOldToken(token: string): Promise<string|number> {
-    if (!token) {
+export async function refreshOldToken(oldToken: string): Promise<string|number> {
+    if (!oldToken) {
         return 401;
     }
     // find the user's refresh token in the database
     const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
-    const findRefreshValues = [token]
+    const findRefreshValues = [oldToken]
     try {
         const {refresh_token} = (await pool.query(findRefresh, findRefreshValues)).rows[0];
         if (!refresh_token) {
             return 403
         }
-        const user = await jwt.verify(token, process.env.REFRESHTOKENSECRET);
-        const accessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '30m' });
+        const user = await jwt.verify(oldToken, process.env.REFRESHTOKENSECRET);
+        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '30m' });
         // save the user's new access token to the db
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
-        const insertAccessTokenQueryValues = [accessToken, token];
+        const insertAccessTokenQueryValues = [newAccessToken, oldToken];
         try {
             const tokenInserted = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
             console.log(tokenInserted)
-            return accessToken
+            return newAccessToken
         } catch(err) {
             console.log(err)
             return 500
@@ -68,10 +67,3 @@ export async function refreshOldToken(token: string): Promise<string|number> {
         return 500
     }
 }
-
-
-
-
-// exports.authenticateToken = authenticateJWT;
-// exports.generateTokens = generateTokens;
-// exports.refreshOldToken = refreshOldToken;
