@@ -1,14 +1,10 @@
-#!/usr/bin/env node
-
-/**
- * Module dependencies.
- */
-export {};
-var app = require('../app');
+import app from '../app.js';
 // Load custom .env file into process.env
-require('dotenv').config()
-var debug = require('debug')('betitserver:server');
-var http = require('http');
+// require('dotenv').config()
+import Debug from 'debug';
+const debug = Debug('betitserver:server');
+
+import http from 'http';
 
 /**
  * Get port from environment and store in Express.
@@ -85,8 +81,14 @@ function onError(error: any) {
 
 function onListening() {
   var addr = server.address();
-  var bind = typeof addr === 'string'
+  if (addr){
+    var bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
-  debug('Listening on ' + bind);
+    debug('Listening on ' + bind);
+  } else {
+    debug('Something went wrong');
+  }
 }
+
+export {};

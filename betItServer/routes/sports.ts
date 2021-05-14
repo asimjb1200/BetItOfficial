@@ -1,6 +1,6 @@
 export {};
-import * as express from 'express';
-const axios = require('axios');
+import express from 'express';
+import axios from'axios';
 let router = express.Router();
 
 /* BASKETBALL */
@@ -31,7 +31,7 @@ router.get('/bball/current-games', async (req: any, res: any) => {
     }
 });
 
-module.exports = router;
+export default router;
 
 
 // football

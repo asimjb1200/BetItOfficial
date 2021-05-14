@@ -1,4 +1,4 @@
-let log4js = require("log4js");
+import log4js from "log4js";
 
 // set up the logger to output errors for users to a file. 10mb, rolling and 2 backups
 log4js.configure({
@@ -7,6 +7,7 @@ log4js.configure({
         mainErrors: { type: "file", filename: "build/logs/main/mainErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         sportsErrors: { type: "file", filename: "build/logs/sports_api/sportsErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         btcErrors: { type: "file", filename: "build/logs/main/btcErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        xrpErrors: { type: "file", filename: "build/logs/main/xrpErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         console: { type: 'console' },
     },
     categories: {
@@ -14,6 +15,7 @@ log4js.configure({
         mainErrors: { appenders: ["mainErrors"], level: "debug" },
         sportsErrors: { appenders: ["sportsErrors"], level: "debug" },
         btcErrors: { appenders: ["btcErrors"], level: "debug" },
+        xrpErrors: { appenders: ["xrpErrors"], level: "debug" },
         default: { appenders: ['console'], level: 'trace'}
     },
 });
@@ -21,8 +23,12 @@ log4js.configure({
 const userLogger = log4js.getLogger("userErrors");
 const mainLogger = log4js.getLogger("mainErrors");
 const btcLogger = log4js.getLogger("btcErrors");
+const xrpLogger = log4js.getLogger("xrpErrors");
 
-exports.userLogger = userLogger;
-exports.mainLogger = mainLogger;
-exports.btcLogger = btcLogger;
-exports.sportsLogger = log4js.getLogger("sportsErrors");
+// exports.userLogger = userLogger;
+// exports.mainLogger = mainLogger;
+// exports.btcLogger = btcLogger;
+// exports.xrpLogger = xrpLogger;
+// exports.sportsLogger = log4js.getLogger("sportsErrors");
+
+export {userLogger, mainLogger, btcLogger, xrpLogger};

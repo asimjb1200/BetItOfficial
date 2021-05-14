@@ -7,6 +7,11 @@ export type WalletInformation = {
     }
 }
 
+export type XRPWalletInfo = {
+    xAddress: string;
+    secret: string;
+}
+
 export type NewTransaction = {
     inputs: [
         {

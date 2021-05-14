@@ -1,19 +1,19 @@
-export {};
-let express = require('express');
+export { };
+import express from 'express';
 import { Request, Response, NextFunction } from 'express';
-import { DatabaseUserModel, UserModel } from '../models/dataModels';
-const bcrypt = require('bcrypt');
-const isEmail = require('email-validator');
+import { DatabaseUserModel, UserModel } from '../models/dataModels.js';
+import bcrypt from 'bcrypt';
+import isEmail from 'email-validator';
 const saltRounds = 10;
-import {pool} from '../database_connection/pool';
-let tokenHandler = require('../tokens/token_auth');
-const { userLogger } = require('../loggerSetup/logSetup');
-import {authenticateJWT, refreshOldToken} from '../tokens/token_auth';
+import { pool } from '../database_connection/pool.js';
+import * as tokenHandler from '../tokens/token_auth.js';
+import { userLogger } from '../loggerSetup/logSetup.js';
+import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 let router = express.Router();
 
 /* check your token */
 router.get('/check-token', authenticateJWT, function (req: Request, res: Response) {
-  res.send({message: 'Access Token Valid', status: 200});
+  res.send({ message: 'Access Token Valid', status: 200 });
 });
 
 /* Register a user */
@@ -49,22 +49,24 @@ router.post('/login', async (req: Request, res: Response) => {
     // can't do anything without the pw so I'll wait on it
     const user: DatabaseUserModel = await pool.query(findUserQuery, queryValues);
     // compare the pw to the hash I have in the db
-    const isMatch = await bcrypt.compare(password, user.rows[0].password);
-    if (isMatch) {
-      const { accessToken, refreshToken } = tokenHandler.generateTokens(user.rows[0].username);
-      // now save the access and refresh tokens to the user's data base
-      const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
-      const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
-      try {
-        const insertTokensResult = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
-        // return the access and refresh token to the client for usage later
-        res.send({
-          accessToken,
-          refreshToken
-        });
-      } catch (tokenSaveError) {
-        userLogger(`Couldn't save the user's tokens: ${tokenSaveError}`);
-        res.sendStatus(500)
+    if (user.rows[0].password) {
+      const isMatch = await bcrypt.compare(password, user.rows[0].password);
+      if (isMatch) {
+        const { accessToken, refreshToken } = tokenHandler.generateTokens(user.rows[0].username);
+        // now save the access and refresh tokens to the user's data base
+        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
+        const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
+        try {
+          const insertTokensResult = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+          // return the access and refresh token to the client for usage later
+          res.send({
+            accessToken,
+            refreshToken
+          });
+        } catch (tokenSaveError) {
+          userLogger.error(`Couldn't save the user's tokens: ${tokenSaveError}`);
+          res.sendStatus(500)
+        }
       }
     } else {
       userLogger.error(`Bad password attempted for user: ${username}`);
@@ -96,11 +98,11 @@ router.post('/logout', async (req: Request, res: Response) => {
 
   try {
     const queryComplete = await pool.query(deleteQuery, deleteQueryValues);
-    res.json({message: "User logged out", status: 200});
+    res.json({ message: "User logged out", status: 200 });
   } catch (error) {
     userLogger.error(`Error when logging user out: ${error}`);
-    res.json({message: "User logged out", status: 200});
+    res.json({ message: "User logged out", status: 200 });
   }
 });
 
-module.exports = router;
+export default router;

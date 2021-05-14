@@ -1,8 +1,10 @@
 "use strict";
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { pool } from '../database_connection/pool';
-const { userLogger } = require('../loggerSetup/logSetup');
+import { pool } from '../database_connection/pool.js';
+import { userLogger } from '../loggerSetup/logSetup.js';
+const tokenSecret: string = process.env.ACCESSTOKENSECRET ? process.env.ACCESSTOKENSECRET : '';
+const refreshTokenSecret: string = process.env.REFRESHTOKENSECRET ? process.env.REFRESHTOKENSECRET : '';
 
 export function authenticateJWT(req: any, res: Response, next: NextFunction): void {
     // grab the authorization header
@@ -12,7 +14,7 @@ export function authenticateJWT(req: any, res: Response, next: NextFunction): vo
         // if it exists, split it on the space to get the tokem
         const token = authHeader.split(' ')[1];
 
-        jwt.verify(token, process.env.ACCESSTOKENSECRET, (err: any, user: any) => {
+        jwt.verify(token, tokenSecret, (err: any, user: any) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
                 userLogger.warn("Invalid access token attempted: " + err)
@@ -31,8 +33,8 @@ export function authenticateJWT(req: any, res: Response, next: NextFunction): vo
 
 export function generateTokens(username: string): {accessToken: string, refreshToken: string} {
     // Generate an access & refresh token
-    const accessToken: string = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET, { expiresIn: '5m' });
-    const refreshToken: string = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET, { expiresIn: '30m' });
+    const accessToken: string = jwt.sign({ username: username }, tokenSecret, { expiresIn: '5m' });
+    const refreshToken: string = jwt.sign({ username: username }, refreshTokenSecret, { expiresIn: '30m' });
 
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken }
@@ -50,8 +52,8 @@ export async function refreshOldToken(oldToken: string): Promise<string|number> 
         if (!refresh_token) {
             return 403
         }
-        const user = await jwt.verify(oldToken, process.env.REFRESHTOKENSECRET);
-        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET, { expiresIn: '30m' });
+        const user: any = await jwt.verify(oldToken, refreshTokenSecret);
+        const newAccessToken = jwt.sign({ username: user.username }, tokenSecret, { expiresIn: '30m' });
         // save the user's new access token to the db
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
         const insertAccessTokenQueryValues = [newAccessToken, oldToken];
@@ -62,7 +64,7 @@ export async function refreshOldToken(oldToken: string): Promise<string|number> 
         } catch(err) {
             console.log(err)
             return 500
-        }
+        } 
     } catch(dbError) {
         return 500
     }
