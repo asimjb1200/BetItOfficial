@@ -12,49 +12,7 @@ import {rippleApi} from '../RippleConnection/ripple_setup.js';
 let router = express.Router();
 
 async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey: string, amount: number) {
-    // construct the transaction message
-    let newtx: NewTransaction = {
-        inputs: [{ addresses: [senderAddr] }],
-        outputs: [{ addresses: [receiverAddr], value: amount }]
-    };
 
-    // import private key of address I want to transfer coins from
-    const keyBuffer = Buffer.from(senderPrivKey, 'hex')
-    let keys = bitcoin.ECPair.fromPrivateKey(keyBuffer, { network: currentNetwork })
-
-    try {
-        let tmptx = await axios.post(`${apiTest}/txs/new`, {
-            inputs: [{ addresses: [senderAddr] }],
-            outputs: [{ addresses: [receiverAddr], value: amount }]
-        });
-        // signing each of the hex-encoded string required to finalize the transaction
-        tmptx.data.pubkeys = [];
-        tmptx.data.signatures = tmptx.data.tosign.map(function (tosign: any, n: any) {
-            tmptx.data.pubkeys.push(keys.publicKey.toString('hex'));
-            return bitcoin.script.signature.encode(
-                keys.sign(Buffer.from(tosign, "hex")),
-                0x01,
-            ).toString("hex").slice(0, -2);
-        });
-
-        // remove circular references in the object
-        let circularsRemoved = fclone(tmptx)
-
-        let sendtx = {
-            tx: circularsRemoved.data.tx,
-            tosign: circularsRemoved.data.tosign,
-            signatures: circularsRemoved.data.signatures,
-            pubkeys: circularsRemoved.data.pubkeys
-        };
-
-        // sending back the transaction with all the signatures to broadcast
-        let finaltx = await axios.post(`${apiTest}/txs/send`, JSON.stringify(sendtx));
-        if (finaltx) {
-            return 200
-        }
-    } catch (err) {
-        return 500
-    }
 }
 
 router.post('/create-wallet', async (req: Request, res: Response) => {
