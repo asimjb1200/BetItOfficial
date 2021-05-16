@@ -1,11 +1,11 @@
-export {};
 import * as ripple from 'ripple-lib';
 import { RippleAPI } from 'ripple-lib';
 import { XRPWalletInfo } from '../models/dataModels';
 
 class RippleHelpers {
     readonly #api: RippleAPI;
-    constructor() {
+    private static _instance: RippleHelpers;
+    private constructor() {
         this.#api = new ripple.RippleAPI({
             server: 'wss://s1.ripple.com' // Public rippled server
         });
@@ -21,6 +21,10 @@ class RippleHelpers {
             // will be 1000 if this was normal closure
             console.log('disconnected, code:', code);
         });
+    }
+
+    public static get Instance(): RippleHelpers {
+        return this._instance || (this._instance = new this());
     }
 
     async connect() {
@@ -41,4 +45,4 @@ class RippleHelpers {
 
 }
 
-export const rippleApi = new RippleHelpers();
+export const rippleApi = RippleHelpers.Instance;
