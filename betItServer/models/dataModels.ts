@@ -7,6 +7,25 @@ export type WalletInformation = {
     }
 }
 
+declare global {
+    namespace Express {
+        interface Request {
+            user?: any; // let the compiler know that it can expect to find a property named 'user' in the Request object
+        }
+    }
+}
+
+
+export type LoginResponse = {
+    tokens?: UserTokens;
+    validUser: boolean;
+}
+
+export type UserTokens = {
+    accessToken: string;
+    refreshToken: string;
+}
+
 export type XRPWalletInfo = {
     xAddress: string;
     secret: string;
