@@ -12,16 +12,13 @@ log4js.configure({
         console: { type: 'console' },
     },
     categories: {
-        // userErrors: { appenders: ["userErrors"], level: "debug" },
-        // mainErrors: { appenders: ["mainErrors"], level: "debug" },
-        // sportsErrors: { appenders: ["sportsErrors"], level: "debug" },
-        // btcErrors: { appenders: ["btcErrors"], level: "debug" },
-        // xrpErrors: { appenders: ["xrpErrors"], level: "debug" },
-        default: { appenders: 
-                        ['console', 'userErrors', 'mainErrors', 
-                            'sportsErrors', 'xrpErrors', 'tokenErrors'], 
-                    level: 'trace'
-                }
+        userErrors: { appenders: ["userErrors"], level: "debug" },
+        tokenErrors: {appenders: ["tokenErrors"], level: "debug" },
+        mainErrors: { appenders: ["mainErrors"], level: "debug" },
+        sportsErrors: { appenders: ["sportsErrors"], level: "debug" },
+        btcErrors: { appenders: ["btcErrors"], level: "debug" },
+        xrpErrors: { appenders: ["xrpErrors"], level: "debug" },
+        default: { appenders:  ['console'],  level: 'trace'}
     },
 });
 
