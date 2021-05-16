@@ -13,7 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/express": "^4.17.8",
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "bcrypt": "^5.0.0",
     "bitcoinjs-lib": "^5.2.0",
     "blockcypher": "^0.3.0",

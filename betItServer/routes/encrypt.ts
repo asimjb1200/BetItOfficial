@@ -9,7 +9,6 @@ function encryptKey(key: any) {
     // create the cipher using the key
     try {
         let cipher = crypto.createCipheriv(algorithm, pwForSecretKey, iv);
-
         let encrypted = cipher.update(key, 'utf8', 'hex');
         encrypted += cipher.final('hex');
         return encrypted;
@@ -18,10 +17,9 @@ function encryptKey(key: any) {
     }
 }
 
-function decryptKey(key: any) {
+function decryptKey(key: any): string {
     let decipher = crypto.createDecipheriv(algorithm, pwForSecretKey, iv);
     let decrypted = decipher.update(key, 'hex', 'utf8');
-    decrypted += decipher.final('utf-8');
     return decrypted;
 }
 

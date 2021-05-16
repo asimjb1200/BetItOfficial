@@ -25,10 +25,4 @@ const mainLogger = log4js.getLogger("mainErrors");
 const btcLogger = log4js.getLogger("btcErrors");
 const xrpLogger = log4js.getLogger("xrpErrors");
 
-// exports.userLogger = userLogger;
-// exports.mainLogger = mainLogger;
-// exports.btcLogger = btcLogger;
-// exports.xrpLogger = xrpLogger;
-// exports.sportsLogger = log4js.getLogger("sportsErrors");
-
 export {userLogger, mainLogger, btcLogger, xrpLogger};
