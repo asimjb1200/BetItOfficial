@@ -5,7 +5,7 @@ import { DatabaseUserModel, UserModel } from '../models/dataModels.js';
 import bcrypt from 'bcrypt';
 import isEmail from 'email-validator';
 const saltRounds = 10;
-import { pool } from '../database_connection/pool.js';
+import { dbOps } from '../database_connection/DatabaseOperations.js';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
@@ -24,17 +24,13 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     if (isEmail.validate(email)) {
       const hash = await bcrypt.hash(password, saltRounds);
       // now post the user to the database
-      const insertUserQuery = 'INSERT INTO users(username, password, email) VALUES($1, $2, $3) RETURNING *';
-      const queryValues = [username, hash, email];
-
-      await pool.query(insertUserQuery, queryValues);
-      userLogger.info(`User created: ${username}`);
+      dbOps.insertNewUser(username, hash, email);
       return res.sendStatus(200);
     } else {
       throw new Error()
     }
   } catch (error) {
-    userLogger.error("Error when trying to create hash of user's password: " + error);
+    userLogger.error("Error when trying to register user:  " + error);
     res.sendStatus(500);
   }
 });
@@ -42,39 +38,14 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 router.post('/login', async (req: Request, res: Response) => {
   // Read username and password from request body
   const { username, password } = req.body;
-  const findUserQuery = 'SELECT password, username FROM users WHERE username = $1';
-  const queryValues = [username];
-
   try {
-    // can't do anything without the pw so I'll wait on it
-    const user: DatabaseUserModel = await pool.query(findUserQuery, queryValues);
-    // compare the pw to the hash I have in the db
-    if (user.rows[0].password) {
-      const isMatch = await bcrypt.compare(password, user.rows[0].password);
-      if (isMatch) {
-        const { accessToken, refreshToken } = tokenHandler.generateTokens(user.rows[0].username);
-        // now save the access and refresh tokens to the user's data base
-        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
-        const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
-        try {
-          const insertTokensResult = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
-          // return the access and refresh token to the client for usage later
-          res.send({
-            accessToken,
-            refreshToken
-          });
-        } catch (tokenSaveError) {
-          userLogger.error(`Couldn't save the user's tokens: ${tokenSaveError}`);
-          res.sendStatus(500)
-        }
-      }
-    } else {
-      userLogger.error(`Bad password attempted for user: ${username}`);
-      res.send("not a match")
+    let loginInfo = await dbOps.login(username, password);
+    if (loginInfo.validUser && loginInfo.tokens) {
+      res.send({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
     }
   } catch (loginError) {
-    userLogger.error(`Couldn't log the user in: ${loginError}`);
-    res.sendStatus(500);
+    
+    res.send({"message": `Could not log user in: ${loginError}`, "status":500});
   }
 });
 
