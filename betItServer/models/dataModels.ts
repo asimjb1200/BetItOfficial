@@ -10,9 +10,15 @@ export type WalletInformation = {
 declare global {
     namespace Express {
         interface Request {
-            user?: any; // let the compiler know that it can expect to find a property named 'user' in the Request object
+            user?: JWTUser; // let the compiler know that it can expect to find a property named 'user' in the Request object
         }
     }
+}
+
+export type JWTUser = {
+    username: string;
+    iat: number;
+    exp: number;
 }
 
 
