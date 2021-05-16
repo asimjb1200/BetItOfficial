@@ -21,7 +21,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
                 tokenLogger.warn("Invalid access token attempted: " + err)
                 return res.sendStatus(403);
             }
-            // console.log(user);
+            console.log(user);
             // if the token is valid, attach the user and continue the request
             req.user = user;
             next();
@@ -46,25 +46,20 @@ export async function refreshOldToken(oldToken: string): Promise<string | number
     if (!oldToken) {
         return 401;
     }
-    // find the user's refresh token in the database
-    const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
-    const findRefreshValues = [oldToken]
     try {
-        const { refresh_token } = (await dbOps.query(findRefresh, findRefreshValues)).rows[0];
+        // find the user's refresh token in the database
+        const refresh_token = await dbOps.findRefreshToken(oldToken);
         if (!refresh_token) {
             return 403
         }
         const user: any = await jwt.verify(oldToken, refreshTokenSecret);
         const newAccessToken = jwt.sign({ username: user.username }, tokenSecret, { expiresIn: '30m' });
-        // save the user's new access token to the db
-        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
-        const insertAccessTokenQueryValues = [newAccessToken, oldToken];
         try {
-            const tokenInserted = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
-            console.log(tokenInserted)
+            // save the user's new access token to the db
+            await dbOps.updateAccessToken(newAccessToken, oldToken);
             return newAccessToken
         } catch (err) {
-            console.log(err)
+            tokenLogger.error(`Problem updating access token for ${user.username}: ` + err);
             return 500
         }
     } catch (dbError) {
