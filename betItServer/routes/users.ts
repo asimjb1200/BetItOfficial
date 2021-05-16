@@ -44,7 +44,6 @@ router.post('/login', async (req: Request, res: Response) => {
       res.send({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
     }
   } catch (loginError) {
-    
     res.send({"message": `Could not log user in: ${loginError}`, "status":500});
   }
 });
@@ -63,12 +62,10 @@ router.post('/refresh-token', async (req: Request, res: Response) => {
 
 router.post('/logout', async (req: Request, res: Response) => {
   const { token } = req.body;
-  // delete the user's refresh token and access token from the database
-  const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
-  const deleteQueryValues = [token];
 
   try {
-    const queryComplete = await pool.query(deleteQuery, deleteQueryValues);
+    // delete the user's refresh token and access token from the database
+    await dbOps.logout(token);
     res.json({ message: "User logged out", status: 200 });
   } catch (error) {
     userLogger.error(`Error when logging user out: ${error}`);
