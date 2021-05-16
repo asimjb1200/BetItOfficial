@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
-import { tokenLogger, userLogger } from '../loggerSetup/logSetup';
-import { DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels';
-import { rippleApi } from '../RippleConnection/ripple_setup';
+import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
+import { DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
+import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 
@@ -48,8 +48,11 @@ class DatabaseOperations {
         }
     }
 
-    logout(userName: string) {
+    async logout(token: string) {
+        const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
+        const deleteQueryValues = [token];
 
+        await this.#dbConnection.query(deleteQuery, deleteQueryValues);
     }
 
     async insertNewUser(username: string, pwHash: string, email: string) {
@@ -62,6 +65,7 @@ class DatabaseOperations {
 
         await this.#dbConnection.query(insertUserQuery, queryValues);
         userLogger.info(`User created: ${username}`);
+
     }
 
     updateWalletAddr(walletAddr: string) {
@@ -72,12 +76,16 @@ class DatabaseOperations {
 
     }
 
-    generateAccessToken() {
-
+    async updateAccessToken(newAccessToken: string, oldToken: string) {
+        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
+        const insertAccessTokenQueryValues = [newAccessToken, oldToken];
+        await this.#dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
     }
 
-    generateRefreshToken(accessToken: string) {
-
+    async insertNewTokens(accessToken: string, refreshToken: string, username: string) {
+        const insertNewTokensQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
+        const insertNewTokensQueryValues = [accessToken, refreshToken, username];
+        await this.#dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
     }
 
     async insertTokensForUser(username: string): Promise<UserTokens> {
@@ -95,8 +103,10 @@ class DatabaseOperations {
 
     }
 
-    findRefreshToken(refreshToken: string) {
-
+    async findRefreshToken(refreshToken: string): Promise<string|undefined> {
+        const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
+        const findRefreshValues = [refreshToken];
+        return (await this.#dbConnection.query(findRefresh, findRefreshValues)).rows[0];
     }
 }
 
