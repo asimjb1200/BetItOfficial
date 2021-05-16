@@ -3,7 +3,7 @@ export { };
 import { Request, Response } from 'express';
 import { WalletInformation, NewTransaction, XRPWalletInfo } from '../models/dataModels.js';
 import express from 'express';
-import { pool } from '../database_connection/pool.js';
+import { dbOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
 import { mainLogger, xrpLogger } from '../loggerSetup/logSetup.js';
 import axios from 'axios';

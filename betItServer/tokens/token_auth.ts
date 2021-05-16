@@ -1,25 +1,27 @@
 "use strict";
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { pool } from '../database_connection/pool.js';
-import { userLogger } from '../loggerSetup/logSetup.js';
+import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
+import { dbOps } from '../database_connection/DatabaseOperations.js';
+import { UserTokens } from '../models/dataModels.js';
 const tokenSecret: string = process.env.ACCESSTOKENSECRET ? process.env.ACCESSTOKENSECRET : '';
 const refreshTokenSecret: string = process.env.REFRESHTOKENSECRET ? process.env.REFRESHTOKENSECRET : '';
 
-export function authenticateJWT(req: any, res: Response, next: NextFunction): void {
-    // grab the authorization header
-    const authHeader: string = req.headers.authorization;
+export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
 
-    if (authHeader) {
+    if (req.headers.authorization) {
+        // grab the authorization header
+        const authHeader: string = req.headers.authorization;
         // if it exists, split it on the space to get the tokem
         const token = authHeader.split(' ')[1];
 
         jwt.verify(token, tokenSecret, (err: any, user: any) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
-                userLogger.warn("Invalid access token attempted: " + err)
+                tokenLogger.warn("Invalid access token attempted: " + err)
                 return res.sendStatus(403);
             }
+            // console.log(user);
             // if the token is valid, attach the user and continue the request
             req.user = user;
             next();
@@ -31,16 +33,16 @@ export function authenticateJWT(req: any, res: Response, next: NextFunction): vo
     }
 };
 
-export function generateTokens(username: string): {accessToken: string, refreshToken: string} {
+export function generateTokens(username: string): UserTokens {
     // Generate an access & refresh token
     const accessToken: string = jwt.sign({ username: username }, tokenSecret, { expiresIn: '5m' });
     const refreshToken: string = jwt.sign({ username: username }, refreshTokenSecret, { expiresIn: '30m' });
 
     // return the access and refresh tokens to the client
-    return { "accessToken": accessToken, "refreshToken": refreshToken }
+    return { "accessToken": accessToken, "refreshToken": refreshToken };
 }
 
-export async function refreshOldToken(oldToken: string): Promise<string|number> {
+export async function refreshOldToken(oldToken: string): Promise<string | number> {
     if (!oldToken) {
         return 401;
     }
@@ -48,7 +50,7 @@ export async function refreshOldToken(oldToken: string): Promise<string|number> 
     const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
     const findRefreshValues = [oldToken]
     try {
-        const {refresh_token} = (await pool.query(findRefresh, findRefreshValues)).rows[0];
+        const { refresh_token } = (await dbOps.query(findRefresh, findRefreshValues)).rows[0];
         if (!refresh_token) {
             return 403
         }
@@ -61,11 +63,11 @@ export async function refreshOldToken(oldToken: string): Promise<string|number> 
             const tokenInserted = await pool.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
             console.log(tokenInserted)
             return newAccessToken
-        } catch(err) {
+        } catch (err) {
             console.log(err)
             return 500
-        } 
-    } catch(dbError) {
+        }
+    } catch (dbError) {
         return 500
     }
 }
