@@ -55,6 +55,17 @@ export type DatabaseUserModel = {
     rows: UserModel[],
 }
 
+export type DatabaseGameModel = {
+    sport: string;
+    home_team: string;
+    away_team: string;
+    game_begins: Date;
+    home_score?: number;
+    away_score?: number;
+    winning_team?: string;
+    season: number;
+}
+
 export type UserModel = {
     id: number;
     username: string;
@@ -64,4 +75,41 @@ export type UserModel = {
     access_token?: string;
     refresh_token?: string;
     wallet_pk?: string;
+}
+
+export type BallDontLieResponse = {
+    data: [BallDontLieData];
+    meta: BallDontLieMetaData;
+}
+
+export type BallDontLieMetaData = {
+    total_pages: number;
+    current_page: number;
+    next_page: number;
+    per_page: number;
+    total_count: number;
+}
+
+export type BallDontLieData = {
+    id: number;
+    date: Date;
+    home_team: BallDontLieTeamData;
+    home_team_score: number;
+    period: number;
+    postseason: boolean,
+    season: number;
+    status: string;
+    time: any;
+    visitor_team: BallDontLieTeamData;
+    visitor_team_score: number;
+}
+
+export type BallDontLieTeamData = {
+    id: number;
+    abbreviation: string;
+    city: string;
+    conference: string;
+    division: string;
+    full_name: string;
+    name: string;
 }
