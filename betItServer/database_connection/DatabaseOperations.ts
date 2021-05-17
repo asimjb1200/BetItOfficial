@@ -1,18 +1,18 @@
 import pg, { Pool } from 'pg';
 import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
-import { DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
+import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 
 class DatabaseOperations {
-    #dbConnection: Pool;
+    protected dbConnection: Pool;
     private static _instance: DatabaseOperations;
 
-    private constructor() {
+    protected constructor() {
         // connecting to the server
         // pooling helps minimizes new connections which are memory intensive, will instead use cached connections
-        this.#dbConnection = new pg.Pool();
+        this.dbConnection = new pg.Pool();
     }
 
     public static get Instance() {
@@ -24,7 +24,7 @@ class DatabaseOperations {
         const queryValues = [username];
 
         // can't do anything without the pw so I'll wait on it
-        const user: DatabaseUserModel = await this.#dbConnection.query(findUserQuery, queryValues);
+        const user: DatabaseUserModel = await this.dbConnection.query(findUserQuery, queryValues);
         // compare the pw to the hash I have in the db
         if (user.rows[0].password) {
             const isMatch = await bcrypt.compare(password, user.rows[0].password);
@@ -52,7 +52,7 @@ class DatabaseOperations {
         const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
         const deleteQueryValues = [token];
 
-        await this.#dbConnection.query(deleteQuery, deleteQueryValues);
+        await this.dbConnection.query(deleteQuery, deleteQueryValues);
     }
 
     async insertNewUser(username: string, pwHash: string, email: string) {
@@ -63,7 +63,7 @@ class DatabaseOperations {
         const insertUserQuery = 'INSERT INTO users(username, password, email, wallet_address, wallet_pk) VALUES($1, $2, $3, $4, $5) RETURNING *';
         const queryValues = [username, pwHash, email, userWalletInfo.xAddress, userWalletInfo.secret];
 
-        await this.#dbConnection.query(insertUserQuery, queryValues);
+        await this.dbConnection.query(insertUserQuery, queryValues);
         userLogger.info(`User created: ${username}`);
 
     }
@@ -79,13 +79,13 @@ class DatabaseOperations {
     async updateAccessToken(newAccessToken: string, oldToken: string) {
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
         const insertAccessTokenQueryValues = [newAccessToken, oldToken];
-        await this.#dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        await this.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
     }
 
     async insertNewTokens(accessToken: string, refreshToken: string, username: string) {
         const insertNewTokensQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
         const insertNewTokensQueryValues = [accessToken, refreshToken, username];
-        await this.#dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
+        await this.dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
     }
 
     async insertTokensForUser(username: string): Promise<UserTokens> {
@@ -94,7 +94,7 @@ class DatabaseOperations {
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
         const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
 
-        const insertTokensResult = await this.#dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        const insertTokensResult = await this.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
 
         return { accessToken, refreshToken };
     }
@@ -106,8 +106,40 @@ class DatabaseOperations {
     async findRefreshToken(refreshToken: string): Promise<string|undefined> {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
-        return (await this.#dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+        return (await this.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+    }
+}
+
+class SportsDataOperations extends DatabaseOperations {
+    private static _sportsInstance: SportsDataOperations;
+
+    protected constructor() {
+        super();
+    }
+
+    public static get SportsInstance() {
+        return this._sportsInstance || (this._sportsInstance = new this());
+    }
+
+    async insertAllGamesForSeason() {
+        const currentYear = new Date().getFullYear();
+        const findAllGames = 'SELECT * FROM games';
+        const games: DatabaseGameModel[] = (await this.dbConnection.query(findAllGames)).rows;
+        if (games.length == 0 || games[0].season !== currentYear) {
+            // populate the db with all of the games for the current season
+        }
+
+        return games;
+    }
+
+    async checkWinner(date: Date, homeTeam: string, awayTeam: string) {
+
+    }
+
+    async updateGameData(gameId: number, homeScore: number, awayScore: number, winningTeam: string) {
+
     }
 }
 
 export const dbOps = DatabaseOperations.Instance;
+export const sportOps = SportsDataOperations.SportsInstance;

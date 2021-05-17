@@ -1,4 +1,3 @@
-export { };
 import express from 'express';
 import { Request, Response, NextFunction } from 'express';
 import { DatabaseUserModel, UserModel } from '../models/dataModels.js';

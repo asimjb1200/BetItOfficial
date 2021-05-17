@@ -1,6 +1,6 @@
 import * as ripple from 'ripple-lib';
 import { RippleAPI } from 'ripple-lib';
-import { XRPWalletInfo } from '../models/dataModels';
+import { XRPWalletInfo } from '../models/dataModels.js';
 
 class RippleHelpers {
     readonly #api: RippleAPI;

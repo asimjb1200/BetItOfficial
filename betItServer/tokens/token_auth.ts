@@ -21,7 +21,6 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
                 tokenLogger.warn("Invalid access token attempted: " + err)
                 return res.sendStatus(403);
             }
-            console.log(user);
             // if the token is valid, attach the user and continue the request
             req.user = user;
             next();

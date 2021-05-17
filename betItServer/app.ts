@@ -7,7 +7,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-import bodyParser from 'body-parser';
+// import bodyParser from 'body-parser';
 import logger from 'morgan';
 import fs from 'fs';
 // import indexRouter from './routes/index';
@@ -23,13 +23,17 @@ app.use(logger('combined', { stream: accessLogStream }))
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(express.urlencoded({
+  extended: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // app.use('/', indexRouter);
 // app.use('/btc-handler', walletHandler);
 app.use('/xrp-handler', walletHandler);
-app.use('/sports-handler', authenticateJWT, sportsHandler);
+// app.use('/sports-handler', authenticateJWT, sportsHandler);
+app.use('/sports-handler', sportsHandler);
 app.use('/users', usersRouter);
 
 export default app;
