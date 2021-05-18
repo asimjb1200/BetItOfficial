@@ -131,27 +131,48 @@ class SportsDataOperations extends DatabaseOperations {
         let currentYear = new Date().getFullYear();
         const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
         const games: DatabaseGameModel[] = (await this.dbConnection.query(findCurrentSeason)).rows;
+
         if (games.length == 0 || games[0].season !== (currentYear - 1)) {
             try {
                 // grab all of the games for the season..
-                const currentSznGames = await bballApi.getAllGamesForYear(--currentYear);
-
+                const currentSznGames = await bballApi.getAllRegSznGames(--currentYear);
+                
+                return currentSznGames;
                 // now add them to the db
-                currentSznGames.data.forEach(game => {
-                    
-                });
+
 
             } catch (err) {
                 sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
             }
         }
-
-        return games;
     }
 
     async checkWinner(date: Date, homeTeam: string, awayTeam: string) {
 
     }
+
+    // async transactionHandler(data: any, tableName: string) {
+    //     ;(async () => {
+    //         const pool = new Pool()
+    //         // note: we don't try/catch this because if connecting throws an exception
+    //         // we don't need to dispose of the client (it will be undefined)
+    //         const client = await pool.connect()
+    //         try {
+    //           await client.query('BEGIN')
+    //           const queryText = `INSERT INTO ${tableName}(name) VALUES($1) RETURNING id`
+    //           const res = await client.query(queryText, ['brianc'])
+    //           const insertPhotoText = 'INSERT INTO photos(user_id, photo_url) VALUES ($1, $2)'
+    //           const insertPhotoValues = [res.rows[0].id, 's3.bucket.foo']
+    //           await client.query(insertPhotoText, insertPhotoValues)
+    //           await client.query('COMMIT')
+    //         } catch (e) {
+    //           await client.query('ROLLBACK')
+    //           throw e
+    //         } finally {
+    //           client.release()
+    //         }
+    //       })().catch(e => console.error(e.stack))
+    // }
 
     async updateGameData(gameId: number, homeScore: number, awayScore: number, winningTeam: string) {
 
