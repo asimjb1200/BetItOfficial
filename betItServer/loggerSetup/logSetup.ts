@@ -14,19 +14,25 @@ log4js.configure({
     categories: {
         userErrors: { appenders: ["userErrors"], level: "debug" },
         wagerErrors: { appenders: ["wagerErrors"], level: "debug" },
-        tokenErrors: {appenders: ["tokenErrors"], level: "debug" },
+        tokenErrors: { appenders: ["tokenErrors"], level: "debug" },
         mainErrors: { appenders: ["mainErrors"], level: "debug" },
         sportsErrors: { appenders: ["sportsErrors"], level: "debug" },
         xrpErrors: { appenders: ["xrpErrors"], level: "debug" },
-        default: { appenders:  ['console'],  level: 'trace'}
+        default: { appenders: ['console'], level: 'trace' }
     },
 });
 
 const userLogger = log4js.getLogger("userErrors");
 const mainLogger = log4js.getLogger("mainErrors");
 const btcLogger = log4js.getLogger("btcErrors");
+const sportsLogger = log4js.getLogger("sportsErrors");
 const xrpLogger = log4js.getLogger("xrpErrors");
 const tokenLogger = log4js.getLogger("tokenErrors");
 const wagerLogger = log4js.getLogger("wagerErrors");
 
-export {userLogger, mainLogger, btcLogger, xrpLogger, tokenLogger, wagerLogger};
+export {
+    userLogger, mainLogger,
+    btcLogger, xrpLogger,
+    tokenLogger, wagerLogger,
+    sportsLogger
+};
