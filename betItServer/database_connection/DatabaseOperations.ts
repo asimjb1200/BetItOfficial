@@ -1,9 +1,10 @@
 import pg, { Pool } from 'pg';
-import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
+import { sportsLogger, tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
+import { bballApi } from '../SportsData/Basketball.js';
 
 class DatabaseOperations {
     protected dbConnection: Pool;
@@ -12,7 +13,12 @@ class DatabaseOperations {
     protected constructor() {
         // connecting to the server
         // pooling helps minimizes new connections which are memory intensive, will instead use cached connections
-        this.dbConnection = new pg.Pool();
+        this.dbConnection = this.DatabaseConnection;
+    }
+
+    private get DatabaseConnection(): Pool {
+        // this is to ensure that the same pool is reused
+        return this.dbConnection ? this.dbConnection : new pg.Pool();
     }
 
     public static get Instance() {
@@ -122,11 +128,22 @@ class SportsDataOperations extends DatabaseOperations {
     }
 
     async insertAllGamesForSeason() {
-        const currentYear = new Date().getFullYear();
-        const findAllGames = 'SELECT * FROM games';
-        const games: DatabaseGameModel[] = (await this.dbConnection.query(findAllGames)).rows;
-        if (games.length == 0 || games[0].season !== currentYear) {
-            // populate the db with all of the games for the current season
+        let currentYear = new Date().getFullYear();
+        const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
+        const games: DatabaseGameModel[] = (await this.dbConnection.query(findCurrentSeason)).rows;
+        if (games.length == 0 || games[0].season !== (currentYear - 1)) {
+            try {
+                // grab all of the games for the season..
+                const currentSznGames = await bballApi.getAllGamesForYear(--currentYear);
+
+                // now add them to the db
+                currentSznGames.data.forEach(game => {
+                    
+                });
+
+            } catch (err) {
+                sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
+            }
         }
 
         return games;
