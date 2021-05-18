@@ -78,8 +78,10 @@ export type UserModel = {
 }
 
 export type BallDontLieResponse = {
-    data: [BallDontLieData];
-    meta: BallDontLieMetaData;
+    data: {
+        data: BallDontLieData[];
+        meta: BallDontLieMetaData;
+    }
 }
 
 export type BallDontLieMetaData = {
