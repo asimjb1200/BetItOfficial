@@ -1,24 +1,34 @@
-import pg, { Pool } from 'pg';
+import pg, { Pool, Notification } from 'pg';
+import createSubscriber from "pg-listen"
 import { sportsLogger, tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
+import { WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
+const db_url = process.env.DATABASE_URL ? process.env.DATABASE_URL : '';
 
 class DatabaseOperations {
-    protected dbConnection: Pool;
+    protected static dbConnection: Pool = new pg.Pool();
+    protected dbSubscriber = createSubscriber({ connectionString: db_url});
     private static _instance: DatabaseOperations;
+    
 
     protected constructor() {
-        // connecting to the server
-        // pooling helps minimizes new connections which are memory intensive, will instead use cached connections
-        this.dbConnection = this.DatabaseConnection;
     }
 
-    private get DatabaseConnection(): Pool {
-        // this is to ensure that the same pool is reused
-        return this.dbConnection ? this.dbConnection : new pg.Pool();
+    setUpSubscriber() {
+        // this will listen for changes to the wagers table
+        this.dbSubscriber.notifications.on("wagers_updated", (payload: WagerNotification) => {
+            let updatedRecord: WagerModel = payload.record;
+            console.log("Received notification in 'wagers_updated':", payload);
+
+            // TODO: add logic that will detect the winner of the bet and pay them out
+        });
+
+        this.dbSubscriber.connect();
+        this.dbSubscriber.listenTo("wagers_updated");
     }
 
     public static get Instance() {
@@ -30,7 +40,7 @@ class DatabaseOperations {
         const queryValues = [username];
 
         // can't do anything without the pw so I'll wait on it
-        const user: DatabaseUserModel = await this.dbConnection.query(findUserQuery, queryValues);
+        const user: DatabaseUserModel = await DatabaseOperations.dbConnection.query(findUserQuery, queryValues);
         // compare the pw to the hash I have in the db
         if (user.rows[0].password) {
             const isMatch = await bcrypt.compare(password, user.rows[0].password);
@@ -58,7 +68,7 @@ class DatabaseOperations {
         const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
         const deleteQueryValues = [token];
 
-        await this.dbConnection.query(deleteQuery, deleteQueryValues);
+        await DatabaseOperations.dbConnection.query(deleteQuery, deleteQueryValues);
     }
 
     async insertNewUser(username: string, pwHash: string, email: string) {
@@ -69,7 +79,7 @@ class DatabaseOperations {
         const insertUserQuery = 'INSERT INTO users(username, password, email, wallet_address, wallet_pk) VALUES($1, $2, $3, $4, $5) RETURNING *';
         const queryValues = [username, pwHash, email, userWalletInfo.xAddress, userWalletInfo.secret];
 
-        await this.dbConnection.query(insertUserQuery, queryValues);
+        await DatabaseOperations.dbConnection.query(insertUserQuery, queryValues);
         userLogger.info(`User created: ${username}`);
 
     }
@@ -85,13 +95,13 @@ class DatabaseOperations {
     async updateAccessToken(newAccessToken: string, oldToken: string) {
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
         const insertAccessTokenQueryValues = [newAccessToken, oldToken];
-        await this.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
     }
 
     async insertNewTokens(accessToken: string, refreshToken: string, username: string) {
         const insertNewTokensQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
         const insertNewTokensQueryValues = [accessToken, refreshToken, username];
-        await this.dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
+        await DatabaseOperations.dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
     }
 
     async insertTokensForUser(username: string): Promise<UserTokens> {
@@ -100,7 +110,7 @@ class DatabaseOperations {
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
         const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
 
-        const insertTokensResult = await this.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        const insertTokensResult = await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
 
         return { accessToken, refreshToken };
     }
@@ -112,16 +122,12 @@ class DatabaseOperations {
     async findRefreshToken(refreshToken: string): Promise<string|undefined> {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
-        return (await this.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+        return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
     }
 }
 
 class SportsDataOperations extends DatabaseOperations {
     private static _sportsInstance: SportsDataOperations;
-
-    protected constructor() {
-        super();
-    }
 
     public static get SportsInstance() {
         return this._sportsInstance || (this._sportsInstance = new this());
@@ -130,7 +136,7 @@ class SportsDataOperations extends DatabaseOperations {
     async insertAllGamesForSeason() {
         let currentYear = new Date().getFullYear();
         const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
-        const games: DatabaseGameModel[] = (await this.dbConnection.query(findCurrentSeason)).rows;
+        const games: DatabaseGameModel[] = (await DatabaseOperations.dbConnection.query(findCurrentSeason)).rows;
 
         if (games.length == 0 || games[0].season !== (currentYear - 1)) {
             try {
@@ -179,5 +185,18 @@ class SportsDataOperations extends DatabaseOperations {
     }
 }
 
+class WagerDataOperations extends DatabaseOperations {
+    private static _wagerInstance: WagerDataOperations;
+
+    public static get WagerInstance() {
+        return this._wagerInstance || (this._wagerInstance = new this());
+    }
+
+    findWagerWinners(gameId: number) {
+
+    }
+}
+
 export const dbOps = DatabaseOperations.Instance;
 export const sportOps = SportsDataOperations.SportsInstance;
+export const wagerOps = WagerDataOperations.WagerInstance;
