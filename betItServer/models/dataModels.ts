@@ -15,6 +15,11 @@ declare global {
     }
 }
 
+export type wagerWinners = {
+    wallet: string;
+    wagerAmount: number;
+};
+
 export type JWTUser = {
     username: string;
     iat: number;
