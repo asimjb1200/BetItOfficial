@@ -1,7 +1,7 @@
 import pg, { Pool, Notification } from 'pg';
 import createSubscriber from "pg-listen"
 import { sportsLogger, tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
-import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, XRPWalletInfo } from '../models/dataModels.js';
+import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -186,17 +186,28 @@ class SportsDataOperations extends DatabaseOperations {
 }
 
 class WagerDataOperations extends DatabaseOperations {
-    private static _wagerInstance: WagerDataOperations;
 
-    public static get WagerInstance() {
-        return this._wagerInstance || (this._wagerInstance = new this());
-    }
+    async findWagerWinners(gameId: number, winningTeam: number) {
+        
+        let winningWalletAddrs: wagerWinners[] = [];
 
-    findWagerWinners(gameId: number) {
+        // find every bet for the specific game
+        const findWinnersQuery = 'SELECT * FROM wagers WHERE game_id=$1'
+        let gameBets: WagerModel[] = (await DatabaseOperations.dbConnection.query(findWinnersQuery, [gameId])).rows;
 
+        // cycle through the bets and record the winner of each bet
+        gameBets.forEach(singleBet => {
+            let betWinner = singleBet.bettor_chosen_team == gameId ? singleBet.bettor : singleBet.fader;
+            let winnerObj: wagerWinners = {wallet: betWinner, wagerAmount: singleBet.wager_amount};
+
+            // add the winner to the array
+            winningWalletAddrs.push(winnerObj);
+        });
+
+        // begin the payout of each winner
     }
 }
 
 export const dbOps = DatabaseOperations.Instance;
 export const sportOps = SportsDataOperations.SportsInstance;
-export const wagerOps = WagerDataOperations.WagerInstance;
+// export const wagerOps = WagerDataOperations.WagerInstance;
