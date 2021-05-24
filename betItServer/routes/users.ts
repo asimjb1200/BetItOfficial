@@ -1,13 +1,12 @@
 import express from 'express';
 import { Request, Response, NextFunction } from 'express';
-import { DatabaseUserModel, UserModel } from '../models/dataModels.js';
 import bcrypt from 'bcrypt';
 import isEmail from 'email-validator';
 const saltRounds = 10;
 import { dbOps } from '../database_connection/DatabaseOperations.js';
-import * as tokenHandler from '../tokens/token_auth.js';
 import { userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
+import { LoginResponse } from '../models/dataModels.js';
 let router = express.Router();
 
 /* check your token */
@@ -26,7 +25,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       dbOps.insertNewUser(username, hash, email);
       return res.sendStatus(200);
     } else {
-      throw new Error()
+      throw new Error('Invalid email address attempted.')
     }
   } catch (error) {
     userLogger.error("Error when trying to register user:  " + error);
@@ -38,7 +37,7 @@ router.post('/login', async (req: Request, res: Response) => {
   // Read username and password from request body
   const { username, password } = req.body;
   try {
-    let loginInfo = await dbOps.login(username, password);
+    const loginInfo: LoginResponse = await dbOps.login(username, password);
     if (loginInfo.validUser && loginInfo.tokens) {
       res.send({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
     }
