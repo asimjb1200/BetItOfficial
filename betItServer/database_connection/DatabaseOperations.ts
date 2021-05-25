@@ -1,12 +1,12 @@
 import pg, { Pool, Notification } from 'pg';
 import createSubscriber from "pg-listen"
 import { sportsLogger, tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
-import { DatabaseGameModel, DatabaseUserModel, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
+import { DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
-import { WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
+import { GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
 const db_url = process.env.DATABASE_URL ? process.env.DATABASE_URL : '';
 
 class DatabaseOperations {
@@ -150,6 +150,31 @@ class SportsDataOperations extends DatabaseOperations {
             } catch (err) {
                 sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
             }
+        }
+    }
+
+    /*
+    * Checks the database to see if any games are played today
+    */
+    async gameDayCheck() {
+        // grab today's date
+        let today = new Date();
+
+        // create a holder for each game id and the teams in each game
+        let gameHolder: GameToday[] = [];
+
+        // grab the dates of all the games
+        let games: GameModel[] = (await DatabaseOperations.dbConnection.query('SELECT * FROM games')).rows;
+
+        if (games.length > 1 && games.length > 0) {
+            // for each game returned
+            games.forEach(x => {
+                // store the game & team ids of the games being played today
+                if (x.game_begins.setHours(0,0,0,0) == today.setHours(0,0,0,0)) {
+                    const {home_team, away_team, game_id} = x;
+                    gameHolder.push({home_team, away_team, game_id, game_date: today});
+                }
+            });
         }
     }
 
