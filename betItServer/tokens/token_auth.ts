@@ -1,11 +1,8 @@
-"use strict";
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { dbOps } from '../database_connection/DatabaseOperations.js';
 import { UserTokens } from '../models/dataModels.js';
-const tokenSecret: string = process.env.ACCESSTOKENSECRET ? process.env.ACCESSTOKENSECRET : '';
-const refreshTokenSecret: string = process.env.REFRESHTOKENSECRET ? process.env.REFRESHTOKENSECRET : '';
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
 
@@ -15,7 +12,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
         // if it exists, split it on the space to get the tokem
         const token = authHeader.split(' ')[1];
 
-        jwt.verify(token, tokenSecret, (err: any, user: any) => {
+        jwt.verify(token, process.env.ACCESSTOKENSECRET!, (err: any, user: any) => {
             // if the token isn't valid, send them a forbidden code
             if (err) {
                 tokenLogger.warn("Invalid access token attempted: " + err)
@@ -34,9 +31,8 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
 
 export function generateTokens(username: string): UserTokens {
     // Generate an access & refresh token
-    const accessToken: string = jwt.sign({ username: username }, tokenSecret, { expiresIn: '5m' });
-    const refreshToken: string = jwt.sign({ username: username }, refreshTokenSecret, { expiresIn: '30m' });
-
+    const accessToken: string = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET!, { expiresIn: "1h" });
+    const refreshToken: string = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET!, { expiresIn: "2h" });
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken };
 }
@@ -51,8 +47,8 @@ export async function refreshOldToken(oldToken: string): Promise<string | number
         if (!refresh_token) {
             return 403
         }
-        const user: any = await jwt.verify(oldToken, refreshTokenSecret);
-        const newAccessToken = jwt.sign({ username: user.username }, tokenSecret, { expiresIn: '30m' });
+        const user: any = await jwt.verify(oldToken, process.env.REFRESHTOKENSECRET!);
+        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET!, { expiresIn: '30m' });
         try {
             // save the user's new access token to the db
             await dbOps.updateAccessToken(newAccessToken, oldToken);
