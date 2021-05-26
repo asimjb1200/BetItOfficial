@@ -1,13 +1,13 @@
 import pg, { Pool, Notification } from 'pg';
 import createSubscriber from "pg-listen"
-import { sportsLogger, tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
+import { apiLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
+import { BallDontLieData, BallDontLieResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
 import { GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -164,9 +164,11 @@ class SportsDataOperations extends DatabaseOperations {
                 }
             });
 
-            gameHolder.forEach(x => {
-                this.scoreChecker(x);
-            });
+            if (gameHolder.length > 0) {
+                this.scoreChecker(gameHolder);
+            }
+        } else {
+            apiLogger.info("No games being played today.");
         }
     }
 
@@ -178,26 +180,43 @@ class SportsDataOperations extends DatabaseOperations {
         // once the games table is updated, my database trigger will update the wagers table
     }
 
-    scoreChecker(gameToday: GameToday) {
-        let gameOver = false;
-        // check the score of the game every ~20 minutes
-        let intervalId = setInterval(async () => {
-            try {
-                // grab the game's data
-                let gameResponse: BallDontLieResponse = await axios.get(`${this.ballDontLieApi}games/${gameToday.game_id}`);
-                let gameData = gameResponse.data.data[0];
-                // check to see if the game is over
-                if (gameData.status == 'Final') {
-                    let winningTeam = (gameData.home_team_score > gameData.visitor_team_score) ? gameData.home_team.id : gameData.visitor_team.id;
-                    
-                    // record the game winner and the score in the 'games' table
-                    this.updateGamesWithWinners(gameData.id, winningTeam)
+    scoreChecker(todaysGames: GameToday[]) {
+        let requestArr: any[] = [];
 
-                    // then stop the interval
-                    clearInterval(intervalId);
+        let intervalId = setInterval(async () => {
+            // grab the game id from each game and build a request with it
+            todaysGames.forEach(x => {
+                requestArr.push(axios.get(`${this.ballDontLieApi}games/${x.game_id}`));
+            });
+
+            try {
+                let allGamesData: BallDontLieData[] = await Promise.all(requestArr);
+                // find out which games were completed
+                for (const gameData of allGamesData) {
+                    // check to see if the game is over
+                    if (gameData.status == 'Final') {
+                        let winningTeam = (gameData.home_team_score > gameData.visitor_team_score) ? gameData.home_team.id : gameData.visitor_team.id;
+                        
+                        try {
+                            // record the game winner and the score in the 'games' table
+                            this.updateGamesWithWinners(gameData.id, winningTeam);
+
+                            // remove that game from the todaysGames array
+                            todaysGames.filter(x => x.game_id !== gameData.id);
+
+                            if (todaysGames.length == 0) {
+                                // then stop the interval
+                                clearInterval(intervalId);
+                            } else {
+                                requestArr = [];
+                            }
+                        } catch (error) {
+                            wagerLogger.error(`Issue saving game winner to db for game : ${gameData.id}. \n Error: ` + error);
+                        }
+                    }
                 }
-            } catch (error) {
-                // TODO: think of a way to keep the app running in the event of an error
+            } catch (apiErr) {
+                apiLogger.error("Trouble fetching game information during score checker interval: " + apiErr);
             }
         }, 1200000);
     }
