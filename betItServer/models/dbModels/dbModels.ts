@@ -13,3 +13,15 @@ export type WagerNotification = {
     operation: string;
     record: WagerModel;
 }
+
+export type GameModel = {
+    game_id: number;
+    sport: string;
+    home_team: number;
+    away_team: number;
+    game_begins: Date;
+    home_score: number;
+    away_score: number;
+    winning_team: number;
+    season: number
+}
