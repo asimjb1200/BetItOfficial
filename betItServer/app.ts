@@ -14,7 +14,7 @@ import fs from 'fs';
 import usersRouter from './routes/users.js';
 import sportsHandler from './routes/sports.js';
 import walletHandler from './routes/wallet_routes.js';
-import {authenticateJWT} from './tokens/token_auth.js';
+import { wagerOps } from './database_connection/DatabaseOperations.js';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
 let app = express();
 
@@ -28,6 +28,9 @@ app.use(express.urlencoded({
   extended: true
 }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// listen to db events
+wagerOps.setUpSubscriber();
 
 // app.use('/', indexRouter);
 // app.use('/btc-handler', walletHandler);
