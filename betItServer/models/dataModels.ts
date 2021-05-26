@@ -20,6 +20,13 @@ export type wagerWinners = {
     wagerAmount: number;
 };
 
+export type GameToday = {
+    home_team: number;
+    away_team: number;
+    game_id: number;
+    game_date: Date;
+};
+
 export type JWTUser = {
     username: string;
     iat: number;
