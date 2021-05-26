@@ -8,6 +8,7 @@ log4js.configure({
         tokenErrors: { type: "file", filename: "build/logs/main/tokenErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         mainErrors: { type: "file", filename: "build/logs/main/mainErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         sportsErrors: { type: "file", filename: "build/logs/sports_api/sportsErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
+        apiErrors: { type: "file", filename: "build/logs/sports_api/apiErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         xrpErrors: { type: "file", filename: "build/logs/main/xrpErrors.log", maxLogSize: 10485760, backups: 2, compress: true },
         console: { type: 'console' },
     },
@@ -17,6 +18,7 @@ log4js.configure({
         tokenErrors: { appenders: ["tokenErrors"], level: "debug" },
         mainErrors: { appenders: ["mainErrors"], level: "debug" },
         sportsErrors: { appenders: ["sportsErrors"], level: "debug" },
+        apiErrors: { appenders: ["apiErrors"], level: "debug" },
         xrpErrors: { appenders: ["xrpErrors"], level: "debug" },
         default: { appenders: ['console'], level: 'trace' }
     },
@@ -29,10 +31,11 @@ const sportsLogger = log4js.getLogger("sportsErrors");
 const xrpLogger = log4js.getLogger("xrpErrors");
 const tokenLogger = log4js.getLogger("tokenErrors");
 const wagerLogger = log4js.getLogger("wagerErrors");
+const apiLogger = log4js.getLogger("apiErrors");
 
 export {
     userLogger, mainLogger,
     btcLogger, xrpLogger,
     tokenLogger, wagerLogger,
-    sportsLogger
+    sportsLogger, apiLogger
 };
