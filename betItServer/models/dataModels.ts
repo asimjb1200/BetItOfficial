@@ -22,7 +22,7 @@ export type wagerWinners = {
 
 export type GameToday = {
     home_team: number;
-    away_team: number;
+    visitor_team: number;
     game_id: number;
     game_date: Date;
 };
@@ -68,13 +68,14 @@ export type DatabaseUserModel = {
 }
 
 export type DatabaseGameModel = {
+    game_id: number;
     sport: string;
-    home_team: string;
-    away_team: string;
+    home_team: number;
+    visitor_team: number;
     game_begins: Date;
     home_score?: number;
     away_score?: number;
-    winning_team?: string;
+    winning_team?: number;
     season: number;
 }
 
