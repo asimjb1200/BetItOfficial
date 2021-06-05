@@ -1,4 +1,4 @@
-import pg, { Pool, Notification } from 'pg';
+import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
 import { BallDontLieData, BallDontLieResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
@@ -126,22 +126,63 @@ class SportsDataOperations extends DatabaseOperations {
 
     async insertAllGamesForSeason() {
         let currentYear = new Date().getFullYear();
-        const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
-        const games: DatabaseGameModel[] = (await DatabaseOperations.dbConnection.query(findCurrentSeason)).rows;
+        // const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
+        // const games: DatabaseGameModel[] = (await DatabaseOperations.dbConnection.query(findCurrentSeason)).rows;
+        let insertNewGames: DatabaseGameModel[] = [];
+        let queryArray = [];
 
-        if (games.length == 0 || games[0].season !== (currentYear - 1)) {
-            try {
-                // grab all of the games for the season..
-                const currentSznGames = await bballApi.getAllRegSznGames(--currentYear);
+        try {
+            // grab all of the games for the season..
+            const currentSznGames: BallDontLieData[] = await bballApi.getAllRegSznGames(--currentYear);
 
-                return currentSznGames;
-                // now add them to the db
-
-
-            } catch (err) {
-                sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
+            // grab only the data that I need for my database table (game_id, home_team, away_team, game_begins, season)
+            for (const game of currentSznGames) {
+                const { id, home_team, visitor_team, date, season } = game;
+                insertNewGames.push({ game_id: id, sport: 'Basketball', home_team: home_team.id, visitor_team: visitor_team.id, game_begins: date, season });
             }
+
+            // now insert each row into the db
+            for (const x of insertNewGames) {
+                let insertQuery = 'INSERT INTO games (game_id, sport, home_team, visitor_team, game_begins, season) VALUES ($1, $2, $3, $4, $5, $6)';
+                let values = [x.game_id, x.sport, x.home_team, x.visitor_team, x.game_begins, x.season];
+                queryArray.push(DatabaseOperations.dbConnection.query(insertQuery, values));
+            }
+
+            let allDataInserted = await Promise.all(queryArray);
+            return 'Done';
+
+        } catch (err) {
+            sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
         }
+    }
+
+    async getGamesByDate(date: Date) {
+        const month = date.getMonth() + 1
+        const day = date.getDate()
+        const year = date.getFullYear();
+        const queryThisDate = `${year}-${month}-${day}`;
+        try {
+            const games = await DatabaseOperations.dbConnection.query("select * from games where game_begins=$1", [queryThisDate])
+            return games.rows
+        } catch (error) {
+            sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
+            return []
+        }
+    }
+
+    async getAllGamesThisWeek() {
+        // query for games that are a week out from today
+        let games: GameModel[] = (await DatabaseOperations.dbConnection.query("select * from games where game_begins='2020-12-22 18:00:00-06'")).rows
+        return games;
+    }
+
+    async testInsert(date: Date) {
+        // remove the fluff from the date
+        let regulatedDate = date.setHours(0, 0, 0, 0);
+        let dateObj = new Date(regulatedDate)
+        const query = "UPDATE games SET game_begins=$1 WHERE game_id=127502"
+        // const queryValues = [regulatedDate];
+        await DatabaseOperations.dbConnection.query(query, [dateObj]);
     }
 
     async gameDayCheck() {
@@ -159,8 +200,8 @@ class SportsDataOperations extends DatabaseOperations {
             games.forEach(x => {
                 // store the game & team ids of the games being played today
                 if (x.game_begins.setHours(0, 0, 0, 0) == today.setHours(0, 0, 0, 0)) {
-                    const { home_team, away_team, game_id } = x;
-                    gameHolder.push({ home_team, away_team, game_id, game_date: today });
+                    const { home_team, visitor_team, game_id } = x;
+                    gameHolder.push({ home_team, visitor_team, game_id, game_date: today });
                 }
             });
 
@@ -196,7 +237,7 @@ class SportsDataOperations extends DatabaseOperations {
                     // check to see if the game is over
                     if (gameData.status == 'Final') {
                         let winningTeam = (gameData.home_team_score > gameData.visitor_team_score) ? gameData.home_team.id : gameData.visitor_team.id;
-                        
+
                         try {
                             // record the game winner and the score in the 'games' table
                             this.updateGamesWithWinners(gameData.id, winningTeam);
@@ -225,11 +266,9 @@ class SportsDataOperations extends DatabaseOperations {
     }
 
     async checkWinner(date: Date, homeTeam: string, awayTeam: string) {
-
     }
 
     async updateGameData(gameId: number, homeScore: number, awayScore: number, winningTeam: string) {
-
     }
 }
 
