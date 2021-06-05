@@ -15,6 +15,7 @@ import usersRouter from './routes/users.js';
 import sportsHandler from './routes/sports.js';
 import walletHandler from './routes/wallet_routes.js';
 import { sportOps, wagerOps } from './database_connection/DatabaseOperations.js';
+import { authenticateJWT } from './tokens/token_auth.js';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
 let app = express();
 
@@ -37,8 +38,6 @@ const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicag
   sportOps.gameDayCheck();
 });
 
-// app.use('/', indexRouter);
-// app.use('/btc-handler', walletHandler);
 app.use('/xrp-handler', walletHandler);
 // app.use('/sports-handler', authenticateJWT, sportsHandler);
 app.use('/sports-handler', sportsHandler);
