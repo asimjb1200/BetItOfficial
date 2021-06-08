@@ -1,9 +1,9 @@
 'use strict';
 export { };
 import { Request, Response } from 'express';
-import { WalletInformation, NewTransaction, XRPWalletInfo } from '../models/dataModels.js';
+import {XRPWalletInfo } from '../models/dataModels.js';
 import express from 'express';
-import { dbOps } from '../database_connection/DatabaseOperations.js';
+import { dbOps, ltcOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
 import { mainLogger, xrpLogger } from '../loggerSetup/logSetup.js';
 import axios from 'axios';
@@ -15,22 +15,20 @@ async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey
 
 }
 
-router.post('/create-wallet', async (req: Request, res: Response) => {
+router.post('/create-ltc-addr', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty('userName')) {
-        const name: string = req.body.userName;
-        await rippleApi.connect();
-        if (rippleApi.api.isConnected()) {
-            const newUserWallet: XRPWalletInfo = rippleApi.createTestWallet();
-            await rippleApi.disconnect();
-            res.send({newUserWallet});
-        } else {
-            res.send('having trouble connecting to the network');
-        }
-        res.send('complete');
-    } else {
-        res.send('must send in a user name');
+        const walletInfo = await ltcOps.createAddr(false, req.body.userName);
+        res.json(walletInfo);
     }
 });
+
+// router.post('/send-ltc-transaction', async (req: Request, res: Response) => {
+//     if (req.body.hasOwnProperty('sender') && req.body.hasOwnProperty('receiver') && req.body.hasOwnProperty('value')) {
+
+//     } else {
+
+//     }
+// });
 
 router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
