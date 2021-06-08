@@ -3,11 +3,11 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import schedule from 'node-schedule';
 import { fileURLToPath } from 'url';
+import compression from 'compression';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// import bodyParser from 'body-parser';
 import logger from 'morgan';
 import fs from 'fs';
 // import indexRouter from './routes/index';
@@ -19,6 +19,7 @@ import { authenticateJWT } from './tokens/token_auth.js';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
 let app = express();
 
+app.use(compression()); //use compression
 app.use(logger('dev'));
 app.use(logger('combined', { stream: accessLogStream }))
 app.use(express.json());
@@ -38,8 +39,7 @@ const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicag
   sportOps.gameDayCheck();
 });
 
-app.use('/xrp-handler', walletHandler);
-// app.use('/sports-handler', authenticateJWT, sportsHandler);
+app.use('/wallet-handler', walletHandler);
 app.use('/sports-handler', sportsHandler);
 app.use('/users', usersRouter);
 
