@@ -1,14 +1,17 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
 import { GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
 import axios, { AxiosResponse } from 'axios';
+import { AddressInformation } from "../models/dataModels";
+import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
+import { decryptKey, encryptKey } from '../routes/encrypt.js';
 
 dotenv.config();
 
@@ -283,8 +286,10 @@ class WagerDataOperations extends DatabaseOperations {
         this.dbSubscriber.notifications.on("wagers_updated", (payload: WagerNotification) => {
             let updatedRecord: WagerModel = payload.record;
 
-            const winner = this.determineWagerWinner(updatedRecord);
-            this.payWinner(winner, updatedRecord.wager_amount);
+            if (updatedRecord.fader && updatedRecord.winning_team) {
+                const winner = this.determineWagerWinner(updatedRecord);
+                this.payWinner(winner, updatedRecord.wager_amount);
+            }
         });
 
         this.dbSubscriber.connect();
@@ -295,16 +300,153 @@ class WagerDataOperations extends DatabaseOperations {
     }
 
     private payWinner(winner: string, amount: number) {
-        // TODO: payout to the winner's address
+        // TODO: payout to the winner's address from the escrow wallet
+    }
+
+    async insertIntoEscrow(addr: string, privKey: string, id: number) {
+        let query = "insert into escrow (address, private_key, wager_id) values ($1, $2, (select id from wagers where id=$3)"
+        await DatabaseOperations.dbConnection.query(query, [addr, privKey, id]);
+        return 'OK'
     }
 
     private determineWagerWinner(wager: WagerModel): string {
         // determine the winner of the bet
-        const winner = (wager.bettor_chosen_team == wager.winning_team) ? wager.bettor : wager.fader;
+        const winner = (wager.bettor_chosen_team == wager.winning_team) ? wager.bettor : wager.fader!;
         return winner;
+    }
+
+    private async createWager(bettor: string, amount: number, game_id: number, chosen_team: number, fader: string ="") {
+        // TODO: create the escrow wallet and hold the data in memory
+        let escrowAddr = await ltcOps.createAddr(true);
+
+        // TODO: create the wager and insert it into the wager's table
+        let wagerInsertQuery = 'INSERT INTO wagers (bettor, wager_amount, game_id, is_active, bettor_chosen_team, escrow_address) values ($1, $2, $3, $4, $5, $6) RETURNING *'
+        let values = [bettor, amount, game_id, true, chosen_team, escrowAddr!.address];
+        const wagerInsert: WagerModel = (await DatabaseOperations.dbConnection.query(wagerInsertQuery, values)).rows[0];
+
+        // TODO: now insert the escrow addr info into the escrow table, using the wager's if as the FK
+        if (escrowAddr) {
+            let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
+        }
+    }
+}
+
+class LitecoinOperations extends DatabaseOperations {
+    #api: string = 'https://api.blockcypher.com/v1/ltc/main';
+    #token: string = `token=${process.env.BLOCKCYPHER_TOKEN}`;
+    private static ltcInstance: LitecoinOperations;
+    litoshiFactor: number = 1e8;
+
+    public static get LitecoinInstance() {
+        return this.ltcInstance || (this.ltcInstance = new this());
+    }
+
+    async createAddr(escrow: Boolean = false, username?: string) {
+        if (!escrow && username) {
+            try {
+                let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
+                const addrData = addrResponse.data
+    
+                // encrypt priv key first
+                let encryptedPrivKey = encryptKey(addrData.private);
+    
+                // update that users wallet attribute
+                await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
+    
+                return addrData
+            } catch (error) {
+                console.log(error)
+            }
+        } else {
+            try {
+                let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
+                let addrData = addrResponse.data;
+    
+                // encrypt priv key first
+                addrData.private = encryptKey(addrData.private);
+    
+                return addrData
+            } catch (error) {
+                console.log(error)
+            }
+        }
+    }
+
+    async createTx(sendingAddr: string, receivingAddr: string, amountInLtc: number) {
+        /* 
+            input: the address sending from
+            output: the address sending to
+            value: litoshis
+        */
+        const amountInLitoshis = amountInLtc * this.litoshiFactor;
+        let privKey = '';
+
+        try {
+            // retrieve the private key from the db
+            privKey = await this.retrievePrivKey(sendingAddr);
+        } catch (err) {
+            console.log(err);
+            return "couldn't retrieve private key from db";
+        }
+
+        // create a buffer from the private key, expect a hex encoded format
+        const privKeyBuffer: Buffer = Buffer.from(privKey, "hex");
+
+        // derive the public key from the private key so that I now have both
+        let keys = bitcoinjs.ECPair.fromPrivateKey(privKeyBuffer);
+
+        let newtx = {
+            inputs: [{ addresses: [sendingAddr] }],
+            outputs: [{ addresses: [receivingAddr], value: amountInLitoshis }]
+        };
+
+        try {
+            // now create the new transaction and get the partially complete tx back to sign with our priv key
+            let tempTx: BlockCypherTxResponse = (await axios.post(`${this.#api}/txs/new?${this.#token}`, newtx)).data;
+
+            tempTx.pubkeys = [];
+
+            // use private key to sign the data in the 'tosign' array
+            tempTx.signatures = tempTx.tosign.map((tosign: any) => {
+                tempTx.pubkeys!.push(keys.publicKey.toString('hex'));
+                return bitcoinjs.script.signature.encode(
+                    keys.sign(Buffer.from(tosign, "hex")),
+                    0x01,
+                ).toString("hex").slice(0, -2);
+            });
+
+            try {
+                // now send the transaction
+                let sendMe = await axios.post(`${this.#api}/txs/send?${this.#token}`, tempTx);
+                return "txs began"
+            } catch (error) {
+                return "problem sending tx"
+            }
+        } catch (error) {
+            return "problem creating tx"
+        }
+    }
+
+    async updateUserLtcAddr(username: string, newAddr: string, encryptedPrivKey: string) {
+        try {
+            let query = 'UPDATE users SET wallet_address=$1, wallet_pk=$2 WHERE username=$3';
+            let op = await DatabaseOperations.dbConnection.query(query, [newAddr, encryptedPrivKey, username]);
+            return 'done';
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    async retrievePrivKey(sendingAddr: string) {
+        // look up the sender's address in the table to get their private key
+        let query = 'SELECT wallet_pk FROM users WHERE wallet_address=$1'
+        const encryptedPrivKey = await DatabaseOperations.dbConnection.query(query, [sendingAddr]);
+        const rawPrivKey = decryptKey(encryptedPrivKey.rows[0]);
+        return rawPrivKey;
     }
 }
 
 export const dbOps = DatabaseOperations.Instance;
 export const sportOps = SportsDataOperations.SportsInstance;
 export const wagerOps = new WagerDataOperations();
+export const ltcOps = LitecoinOperations.LitecoinInstance;
