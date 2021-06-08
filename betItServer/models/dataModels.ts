@@ -1,10 +1,16 @@
-export type WalletInformation = {
+export type AddressInformation = {
     data: {
         private: string;
         public: string;
         wif: string;
         address: string;
     }
+}
+
+export type WalletInfo = {
+    token: string;
+    name: string;
+    addresses: string[];
 }
 
 declare global {
@@ -52,19 +58,19 @@ export type XRPWalletInfo = {
 export type NewTransaction = {
     inputs: [
         {
-            addresses: string[],
+            addresses: string[];
         }
-    ],
+    ];
     outputs: [
         {
-            addresses: string[],
-            value: number,
+            addresses: string[];
+            value: number;
         }
     ]
 }
 
 export type DatabaseUserModel = {
-    rows: UserModel[],
+    rows: UserModel[];
 }
 
 export type DatabaseGameModel = {
@@ -111,7 +117,7 @@ export type BallDontLieData = {
     home_team: BallDontLieTeamData;
     home_team_score: number;
     period: number;
-    postseason: boolean,
+    postseason: boolean;
     season: number;
     status: string;
     time: any;
@@ -127,4 +133,49 @@ export type BallDontLieTeamData = {
     division: string;
     full_name: string;
     name: string;
+}
+
+export type BlockCypherTxResponse = {
+    tx: BlockCypherTx;
+    tosign: string[];
+    signatures?: string[];
+    pubkeys?: string[];
+}
+
+export type BlockCypherTxInput = {
+        prev_hash: string;
+        output_index: number;
+        output_value: number;
+        sequence: number;
+        addresses: string[];
+        script_type: string;
+        age: number;
+}
+
+export type BlockCypherTxOutput = {
+    value: number;
+    script: string;
+    addresses: string[];
+    script_type: string;
+}
+
+export type BlockCypherTx = {
+    block_height: number;
+    block_index: number;
+    hash: string;
+    addresses: string[];
+    total: number;
+    fees: number;
+    size: number;
+    vsize: number;
+    preference: string;
+    relayed_by: any;
+    received: Date;
+    ver: number;
+    double_spend: boolean;
+    vin_sz: number;
+    vout_sz: number;
+    confirmations: number;
+    inputs: BlockCypherTxInput[];
+    outputs: BlockCypherTxOutput[];
 }
