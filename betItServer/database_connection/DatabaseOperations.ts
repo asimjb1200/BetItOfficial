@@ -341,7 +341,7 @@ class LitecoinOperations extends DatabaseOperations {
         return this.ltcInstance || (this.ltcInstance = new this());
     }
 
-    async createAddr(escrow: Boolean = false, username?: string) {
+    async createAddr(escrow: Boolean, username?: string) {
         if (!escrow && username) {
             try {
                 let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
