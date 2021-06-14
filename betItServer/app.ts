@@ -14,6 +14,7 @@ import fs from 'fs';
 import usersRouter from './routes/users.js';
 import sportsHandler from './routes/sports.js';
 import walletHandler from './routes/wallet_routes.js';
+import wagerHandler from './routes/wagers.js';
 import { sportOps, wagerOps } from './database_connection/DatabaseOperations.js';
 import { authenticateJWT } from './tokens/token_auth.js';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
@@ -39,8 +40,9 @@ const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicag
   sportOps.gameDayCheck();
 });
 
-app.use('/wallet-handler', walletHandler);
-app.use('/sports-handler', sportsHandler);
+app.use('/wallet-handler', authenticateJWT, walletHandler);
+app.use('/sports-handler', authenticateJWT, sportsHandler);
+app.use('/wager-handler', authenticateJWT, wagerHandler);
 app.use('/users', usersRouter);
 
 export default app;
