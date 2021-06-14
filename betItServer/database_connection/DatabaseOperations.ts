@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -29,7 +29,7 @@ class DatabaseOperations {
     }
 
     async login(username: string, password: string): Promise<LoginResponse> {
-        const findUserQuery = 'SELECT password, username FROM users WHERE username = $1';
+        const findUserQuery = 'SELECT password, username, wallet_address, access_token, refresh_token FROM users WHERE username = $1';
         const queryValues = [username];
 
         // can't do anything without the pw so I'll wait on it
@@ -41,7 +41,12 @@ class DatabaseOperations {
                 try {
                     // generate and save tokens to the db
                     const tokens: UserTokens = await this.insertTokensForUser(username);
-                    return { tokens, validUser: true };
+
+                    // construct the user model for the client to use
+                    const {wallet_address, access_token, refresh_token} = user.rows[0]
+                    const userForClient: ClientUserModel = {username, wallet_address, access_token, refresh_token};
+
+                    return { tokens, validUser: true, user: userForClient };
                 } catch (insertError) {
                     tokenLogger.error(`issue with insertTokensForUser(${username}): ` + insertError);
                     userLogger.error(`Could not generate & save tokens for ${username}`);
@@ -58,10 +63,20 @@ class DatabaseOperations {
     }
 
     async logout(token: string) {
-        const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE refresh_token = $1';
+        const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE access_token=$1';
         const deleteQueryValues = [token];
 
-        await DatabaseOperations.dbConnection.query(deleteQuery, deleteQueryValues);
+        try {
+            let logoutInfo = await DatabaseOperations.dbConnection.query(deleteQuery, deleteQueryValues);
+            if (logoutInfo.rowCount == 1) {
+                return true
+            } else {
+                userLogger.error(`token not found during logout: ${token}`);
+                return false
+            }
+        } catch (error) {
+            return false
+        }
     }
 
     async insertNewUser(username: string, pwHash: string, email: string) {
@@ -281,7 +296,14 @@ class WagerDataOperations extends DatabaseOperations {
         super();
     }
 
-    setUpSubscriber() {
+    async getWagersByGameId(gameId: number) {
+        console.log({gameId});
+        const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;
+        console.log({wagers})
+        return wagers;
+    }
+
+    async setUpSubscriber() {
         // this will listen for changes to the wagers table
         this.dbSubscriber.notifications.on("wagers_updated", (payload: WagerNotification) => {
             let updatedRecord: WagerModel = payload.record;
