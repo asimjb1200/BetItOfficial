@@ -11,10 +11,6 @@ import { encryptKey, decryptKey } from './encrypt.js';
 import {rippleApi} from '../RippleConnection/ripple_setup.js';
 let router = express.Router();
 
-async function sendCoins(senderAddr: string, receiverAddr: string, senderPrivKey: string, amount: number) {
-
-}
-
 router.post('/create-ltc-addr', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty('userName')) {
         const walletInfo = await ltcOps.createAddr(false, req.body.userName);
