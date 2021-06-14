@@ -39,10 +39,18 @@ export type JWTUser = {
     exp: number;
 }
 
-
 export type LoginResponse = {
     tokens?: UserTokens;
+    user?: ClientUserModel;
     validUser: boolean;
+}
+
+export type ClientUserModel = {
+    username: string;
+    wallet_address?: string;
+    access_token?: string;
+    refresh_token?: string;
+    exp?: number
 }
 
 export type UserTokens = {
