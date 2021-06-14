@@ -38,11 +38,15 @@ router.post('/login', async (req: Request, res: Response) => {
   const { username, password } = req.body;
   try {
     const loginInfo: LoginResponse = await dbOps.login(username, password);
-    if (loginInfo.validUser && loginInfo.tokens) {
-      res.send({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
+    if (loginInfo.validUser && loginInfo.tokens && loginInfo.user) {
+      console.log({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
+      loginInfo.user.exp = req.user?.exp
+      res.status(200).json(loginInfo.user);
+    } else {
+      res.status(401).send('Invalid login info');
     }
   } catch (loginError) {
-    res.send({"message": `Could not log user in: ${loginError}`, "status":500});
+    res.status(500).send('Could not log user in')
   }
 });
 
@@ -60,15 +64,13 @@ router.post('/refresh-token', async (req: Request, res: Response) => {
 
 router.post('/logout', async (req: Request, res: Response) => {
   const { token } = req.body;
-
-  try {
     // delete the user's refresh token and access token from the database
-    await dbOps.logout(token);
-    res.json({ message: "User logged out", status: 200 });
-  } catch (error) {
-    userLogger.error(`Error when logging user out: ${error}`);
-    res.json({ message: "User logged out", status: 200 });
-  }
+    let loggedOut = await dbOps.logout(token);
+    if (loggedOut) {
+      res.status(200).send("User logged out");
+    } else {
+      res.status(404).send('Attempted token not found')
+    }
 });
 
 export default router;
