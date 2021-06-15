@@ -20,10 +20,14 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 
   try {
     if (isEmail.validate(email)) {
-      const hash = await bcrypt.hash(password, saltRounds);
-      // now post the user to the database
-      dbOps.insertNewUser(username, hash, email);
-      return res.sendStatus(200);
+      if (typeof username == 'string' && typeof password == 'string') {
+        const hash = await bcrypt.hash(password, saltRounds);
+        // now post the user to the database
+        await dbOps.insertNewUser(username, hash, email);
+        return res.sendStatus(201);
+      } else {
+        throw new Error('username or password was not a string');
+      }
     } else {
       throw new Error('Invalid email address attempted.')
     }
@@ -39,8 +43,6 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const loginInfo: LoginResponse = await dbOps.login(username, password);
     if (loginInfo.validUser && loginInfo.tokens && loginInfo.user) {
-      console.log({"accessToken": loginInfo.tokens.accessToken, "refreshToken": loginInfo.tokens.refreshToken});
-      loginInfo.user.exp = req.user?.exp
       res.status(200).json(loginInfo.user);
     } else {
       res.status(401).send('Invalid login info');
