@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
-import { apiLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -12,6 +12,7 @@ import { AddressInformation } from "../models/dataModels";
 import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
 import { decryptKey, encryptKey } from '../routes/encrypt.js';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -41,10 +42,12 @@ class DatabaseOperations {
                 try {
                     // generate and save tokens to the db
                     const tokens: UserTokens = await this.insertTokensForUser(username);
+                    const verifiedUser: JWTUser = (await jwt.verify(tokens.accessToken, process.env.ACCESSTOKENSECRET!))as JWTUser;
 
+                    console.log(verifiedUser);
                     // construct the user model for the client to use
                     const {wallet_address, access_token, refresh_token} = user.rows[0]
-                    const userForClient: ClientUserModel = {username, wallet_address, access_token, refresh_token};
+                    const userForClient: ClientUserModel = {username, wallet_address, access_token, refresh_token, exp: verifiedUser.exp};
 
                     return { tokens, validUser: true, user: userForClient };
                 } catch (insertError) {
@@ -87,9 +90,10 @@ class DatabaseOperations {
         const insertUserQuery = 'INSERT INTO users(username, password, email, wallet_address, wallet_pk) VALUES($1, $2, $3, $4, $5) RETURNING *';
         const queryValues = [username, pwHash, email, userWalletInfo.xAddress, userWalletInfo.secret];
 
-        await DatabaseOperations.dbConnection.query(insertUserQuery, queryValues);
-        userLogger.info(`User created: ${username}`);
-
+        const userInserted = await DatabaseOperations.dbConnection.query(insertUserQuery, queryValues);
+        if (userInserted.rowCount > 0) {
+            userLogger.info(`User created: ${username}`);
+        }
     }
 
     updateWalletAddr(walletAddr: string) {
@@ -297,10 +301,13 @@ class WagerDataOperations extends DatabaseOperations {
     }
 
     async getWagersByGameId(gameId: number) {
-        console.log({gameId});
-        const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;
-        console.log({wagers})
-        return wagers;
+        try {
+            const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;
+            return wagers;
+        } catch (error) {
+            mainLogger.error(`Error when retrieving wagers for gameId ${gameId}. \n Error: ${error}`);
+            return [];
+        }
     }
 
     async setUpSubscriber() {
@@ -350,6 +357,14 @@ class WagerDataOperations extends DatabaseOperations {
         if (escrowAddr) {
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
         }
+    }
+
+    async updateWager(wagerId: number, fader: string) {
+        let query = 'UPDATE wagers SET fader=$1 WHERE id=$2 RETURNING *';
+        let values = [fader, wagerId];
+        let updatedWager = await DatabaseOperations.dbConnection.query(query, values);
+
+        return updatedWager;
     }
 }
 
