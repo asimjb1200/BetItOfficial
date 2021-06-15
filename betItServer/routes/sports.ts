@@ -21,13 +21,12 @@ router.get('/bball/games-this-week', async (req: Request, res: Response) => {
 router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     let date = new Date(req.body.date);
 
-    let games: GameModel[] = await sportOps.getGamesByDate(date)
-    console.log({games})
+    let games: GameModel[] = await sportOps.getGamesByDate(date);
     
     if (games.length > 0) {
-        res.json(games);
+        res.status(200).json(games);
     } else {
-        res.send("No games today");
+        res.status(404).send("No games today");
     }
 });
 
