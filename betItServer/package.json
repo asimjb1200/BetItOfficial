@@ -40,6 +40,7 @@
     "pg": "^8.3.3",
     "pg-listen": "^1.7.0",
     "ripple-lib": "^1.9.4",
+    "socket.io": "^4.1.2",
     "typescript": "^4.0.3"
   },
   "type": "module",

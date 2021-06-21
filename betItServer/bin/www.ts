@@ -2,7 +2,10 @@ import app from '../app.js';
 import Debug from 'debug';
 import dotenv from 'dotenv';
 const debug = Debug('betitserver:server');
+import {Server, Socket} from 'socket.io';
 import http from 'http';
+
+let connections: Socket[] = [];
 
 dotenv.config();
 
@@ -18,6 +21,34 @@ app.set('port', port);
  */
 
 let server = http.createServer(app);
+
+/**
+ * Set up socket.io
+ */
+export const io: Server = new Server(server);
+io.on("connection", (socket: Socket) => {
+  console.log("New socket connected.");
+  connections.push(socket);
+  console.log(connections.length + " sockets connected.");
+  console.log({socket});
+
+  // io.on("disconnect", (reason: string) => {
+  //   console.log(reason);
+  //   // remove the current socket from the connections array
+  //   connections.splice(connections.indexOf(socket), 1);
+  // });
+
+  // // define a channel to listen to and communicate with clients on
+  socket.on('NodeJS Server Port', (data: any) => {
+    console.log("data from the client: " + data);
+    // send data back to the client
+    io.emit('iOS Listeners', {msg: "We are now communicating"});
+  });
+
+  // socket.on('Check updated wagers', async (data: any) => {
+  //   io.emit('wager update listeners', {updatedWagers: ''});
+  // });
+});
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -85,6 +116,8 @@ function onListening() {
     let bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
+
+    console.log('Listening on ' + bind);
     debug('Listening on ' + bind);
   } else {
     debug('Something went wrong');

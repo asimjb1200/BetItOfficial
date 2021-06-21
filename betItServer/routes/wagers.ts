@@ -2,7 +2,9 @@ import express, { Request, Response } from 'express';
 import axios from'axios';
 import { userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
 import { dbOps, wagerOps } from '../database_connection/DatabaseOperations.js';
+import { WagerModel } from '../models/dbModels/dbModels.js';
 let router = express.Router();
+import {io} from '../bin/www.js'
 
 router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty("gameId") && typeof req.body.gameId == 'number') {
@@ -23,7 +25,10 @@ router.post('/add-fader-to-wager', async (req: Request, res: Response) => {
         const wagerId = req.body.wager_id
 
         // make the update to the wager
-        let updatedWager = await wagerOps.updateWager(wagerId, faderAddr);
+        let updatedWager: WagerModel = await wagerOps.updateWagerWithFader(wagerId, faderAddr);
+
+        // emit the updated wager to the app so that everyone will update their views
+        io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
 
         return res.status(200).json(updatedWager);
     }
