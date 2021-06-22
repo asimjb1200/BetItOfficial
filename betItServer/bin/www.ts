@@ -27,11 +27,6 @@ let server = http.createServer(app);
  */
 export const io: Server = new Server(server);
 io.on("connection", (socket: Socket) => {
-  console.log("New socket connected.");
-  connections.push(socket);
-  console.log(connections.length + " sockets connected.");
-  console.log({socket});
-
   // io.on("disconnect", (reason: string) => {
   //   console.log(reason);
   //   // remove the current socket from the connections array

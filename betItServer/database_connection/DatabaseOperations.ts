@@ -303,7 +303,9 @@ class WagerDataOperations extends DatabaseOperations {
     async getWagersByGameId(gameId: number) {
         try {
             const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;
-            return wagers;
+
+            const availableWagers = wagers.length > 0 ? wagers.filter(wager => wager.is_active == false) : [];
+            return availableWagers
         } catch (error) {
             mainLogger.error(`Error when retrieving wagers for gameId ${gameId}. \n Error: ${error}`);
             return [];
