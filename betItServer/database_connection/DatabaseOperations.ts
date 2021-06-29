@@ -30,7 +30,7 @@ class DatabaseOperations {
     }
 
     async login(username: string, password: string): Promise<LoginResponse> {
-        const findUserQuery = 'SELECT password, username, wallet_address, access_token, refresh_token FROM users WHERE username = $1';
+        const findUserQuery = 'SELECT password, username, wallet_address FROM users WHERE username = $1';
         const queryValues = [username];
 
         // can't do anything without the pw so I'll wait on it
@@ -46,8 +46,13 @@ class DatabaseOperations {
 
                     console.log(verifiedUser);
                     // construct the user model for the client to use
-                    const {wallet_address, access_token, refresh_token} = user.rows[0]
-                    const userForClient: ClientUserModel = {username, wallet_address, access_token, refresh_token, exp: verifiedUser.exp};
+                    const {wallet_address} = user.rows[0]
+                    const userForClient: ClientUserModel = {
+                        username, wallet_address, 
+                        access_token: tokens.accessToken, 
+                        refresh_token: tokens.refreshToken, 
+                        exp: verifiedUser.exp
+                    };
 
                     return { tokens, validUser: true, user: userForClient };
                 } catch (insertError) {
@@ -122,7 +127,7 @@ class DatabaseOperations {
         const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
         const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
 
-        await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        let updateMe = await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
 
         return { accessToken, refreshToken };
     }
