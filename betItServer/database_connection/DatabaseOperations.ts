@@ -44,7 +44,6 @@ class DatabaseOperations {
                     const tokens: UserTokens = await this.insertTokensForUser(username);
                     const verifiedUser: JWTUser = (await jwt.verify(tokens.accessToken, process.env.ACCESSTOKENSECRET!))as JWTUser;
 
-                    console.log(verifiedUser);
                     // construct the user model for the client to use
                     const {wallet_address} = user.rows[0]
                     const userForClient: ClientUserModel = {
