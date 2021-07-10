@@ -1,27 +1,33 @@
-export {};
 import crypto from 'crypto';
-const algorithm = 'aes-256-gcm';
-// passphrase used to generate key
-const pwForSecretKey: string = process.env.ENCRYPTIONSECRETKEY as string;
-const iv: Buffer = Buffer.alloc(16, 0); // Initialization vector.
+var CIPHER_ALGORITHM = 'aes-256-ctr';
+const secretKey: string = process.env.ENCRYPTIONSECRETKEY as string;
 
-function encryptKey(key: string): string {
-    // create the cipher using the key
-    try {
-        let cipher = crypto.createCipheriv(algorithm, pwForSecretKey, iv);
-        let encrypted = cipher.update(key, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-        return encrypted;
-    } catch (e) {
-        console.log(e);
-        return '';
-    }
-}
+const encrypt = (text: string) => {
+  let sha256 = crypto.createHash('sha256');
+  sha256.update(String.prototype.normalize(secretKey)); // this ensures the key is ALWAYS 256 bits
+  
+  // Initialization Vector
+  let iv = crypto.randomBytes(16); // randomization to ensure no to crypted strings are the same
+  let cipher = crypto.createCipheriv(CIPHER_ALGORITHM, sha256.digest(), iv);
 
-function decryptKey(key: string): string {
-    let decipher = crypto.createDecipheriv(algorithm, pwForSecretKey, iv);
-    let decrypted = decipher.update(key, 'hex', 'utf8');
-    return decrypted;
-}
+  let buffer = Buffer.from(text);
 
-export {decryptKey, encryptKey};
+  let ciphertext = cipher.update(buffer);
+  let encrypted = Buffer.concat([iv, ciphertext, cipher.final()]);
+  return encrypted.toString('base64');
+};
+  
+const decrypt = (encrypted: string) => {
+  let text = Buffer.from(encrypted, 'base64');
+  let sha256 = crypto.createHash('sha256');
+  sha256.update(String.prototype.normalize(secretKey)); 
+  // Initialization Vector
+  let iv = text.slice(0, 16);
+  let decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, sha256.digest(), iv);
+
+  let ciphertext = text.slice(16);
+  const output = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  return output.toString()
+};
+
+export { encrypt, decrypt };

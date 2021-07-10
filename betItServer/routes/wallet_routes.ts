@@ -7,7 +7,7 @@ import { dbOps, ltcOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
 import { mainLogger, xrpLogger } from '../loggerSetup/logSetup.js';
 import axios from 'axios';
-import { encryptKey, decryptKey } from './encrypt.js';
+import { encrypt, decrypt } from './encrypt.js';
 import {rippleApi} from '../RippleConnection/ripple_setup.js';
 let router = express.Router();
 
@@ -18,23 +18,28 @@ router.post('/create-ltc-addr', async (req: Request, res: Response) => {
     }
 });
 
-// router.post('/send-ltc-transaction', async (req: Request, res: Response) => {
-//     if (req.body.hasOwnProperty('sender') && req.body.hasOwnProperty('receiver') && req.body.hasOwnProperty('value')) {
+router.post('/get-wallet-balance', async (req: Request, res: Response) => {
+    if (req.body.hasOwnProperty('address') && req.body.hasOwnProperty('username')) {
+        let walletOwnerData = await ltcOps.getWalletOwner(req.body.username);
 
-//     } else {
-
-//     }
-// });
+        if (walletOwnerData.wallet_address == req.body.address) {
+            let balance = await ltcOps.fetchWalletBalance(req.body.address);
+            res.status(200).json({balance});
+        } else {
+            res.status(401).send('This is not your wallet')
+        }
+    }
+});
 
 router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
-    const encryptedText = encryptKey(plainPrivateKey);
+    const encryptedText = encrypt(plainPrivateKey);
     res.send(encryptedText);
 });
 
 router.post('/test-decryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
-    const decryptedText = decryptKey(plainPrivateKey);
+    const decryptedText = decrypt(plainPrivateKey);
     res.send(decryptedText);
 });
 
