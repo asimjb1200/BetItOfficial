@@ -1,7 +1,10 @@
 import crypto from 'crypto';
-var CIPHER_ALGORITHM = 'aes-256-ctr';
+let CIPHER_ALGORITHM = 'aes-256-ctr';
 const secretKey: string = process.env.ENCRYPTIONSECRETKEY as string;
 
+/** using ctr encryption, therefore the plain text message doesn't
+ * have to be any particular size (in bytes) for it to work.
+ */
 const encrypt = (text: string) => {
   let sha256 = crypto.createHash('sha256');
   sha256.update(String.prototype.normalize(secretKey)); // this ensures the key is ALWAYS 256 bits
@@ -14,15 +17,15 @@ const encrypt = (text: string) => {
 
   let ciphertext = cipher.update(buffer);
   let encrypted = Buffer.concat([iv, ciphertext, cipher.final()]);
-  return encrypted.toString('base64');
+  return encrypted.toString('base64'); // turn the binary data into a text string for storage
 };
   
 const decrypt = (encrypted: string) => {
-  let text = Buffer.from(encrypted, 'base64');
+  let text = Buffer.from(encrypted, 'base64'); // turn the text string back into binary data
   let sha256 = crypto.createHash('sha256');
   sha256.update(String.prototype.normalize(secretKey)); 
   // Initialization Vector
-  let iv = text.slice(0, 16);
+  const iv = text.slice(0, 16);
   let decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, sha256.digest(), iv);
 
   let ciphertext = text.slice(16);
