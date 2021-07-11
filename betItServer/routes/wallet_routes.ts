@@ -1,14 +1,12 @@
 'use strict';
 export { };
 import { Request, Response } from 'express';
-import {XRPWalletInfo } from '../models/dataModels.js';
+import {BlockCypherAddressData } from '../models/dataModels.js';
 import express from 'express';
 import { dbOps, ltcOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
-import { mainLogger, xrpLogger } from '../loggerSetup/logSetup.js';
-import axios from 'axios';
-import { encryptKey, decryptKey } from './encrypt.js';
-import {rippleApi} from '../RippleConnection/ripple_setup.js';
+import { mainLogger } from '../loggerSetup/logSetup.js';
+import { encrypt, decrypt } from './encrypt.js';
 let router = express.Router();
 
 router.post('/create-ltc-addr', async (req: Request, res: Response) => {
@@ -18,23 +16,37 @@ router.post('/create-ltc-addr', async (req: Request, res: Response) => {
     }
 });
 
-// router.post('/send-ltc-transaction', async (req: Request, res: Response) => {
-//     if (req.body.hasOwnProperty('sender') && req.body.hasOwnProperty('receiver') && req.body.hasOwnProperty('value')) {
+router.post('/get-wallet-balance', async (req: Request, res: Response) => {
+    if (req.body.hasOwnProperty('address') && req.body.hasOwnProperty('username')) {
+        let walletOwnerData = await ltcOps.getWalletOwner(req.body.username);
 
-//     } else {
-
-//     }
-// });
+        if (walletOwnerData.wallet_address == req.body.address) {
+            try {
+                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
+                res.status(200).json({balance});
+            } catch (err) {
+                mainLogger.error(`
+                There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Status: ${err.response.status}\n Message: ${err.message}\n Data: ${err.response.data}`);
+                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
+                res.status(200).json({balance});
+            } finally {
+                res.status(500).send('There was an error getting your balance.');
+            }
+        } else {
+            res.status(401).send('This is not your wallet')
+        }
+    }
+});
 
 router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
-    const encryptedText = encryptKey(plainPrivateKey);
+    const encryptedText = encrypt(plainPrivateKey);
     res.send(encryptedText);
 });
 
 router.post('/test-decryption/:pw', async (req: Request, res: Response) => {
     const plainPrivateKey = req.params.pw;
-    const decryptedText = decryptKey(plainPrivateKey);
+    const decryptedText = decrypt(plainPrivateKey);
     res.send(decryptedText);
 });
 

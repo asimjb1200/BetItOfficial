@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -11,7 +11,8 @@ import axios, { AxiosResponse } from 'axios';
 import { AddressInformation } from "../models/dataModels";
 import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
-import { decryptKey, encryptKey } from '../routes/encrypt.js';
+// import { decryptKey, decryptWalletKey, encryptKey, encryptWalletKey } from '../routes/encrypt.js';
+import { encrypt, decrypt } from '../routes/encrypt.js';
 import jwt from 'jsonwebtoken';
 
 dotenv.config();
@@ -88,11 +89,11 @@ class DatabaseOperations {
 
     async insertNewUser(username: string, pwHash: string, email: string) {
         // create a wallet for that user
-        const userWalletInfo: XRPWalletInfo = await rippleApi.createTestWallet();
+        const userWalletInfo = await ltcOps.createAddr(false, username)
 
         // post the user to the database
         const insertUserQuery = 'INSERT INTO users(username, password, email, wallet_address, wallet_pk) VALUES($1, $2, $3, $4, $5) RETURNING *';
-        const queryValues = [username, pwHash, email, userWalletInfo.xAddress, userWalletInfo.secret];
+        const queryValues = [username, pwHash, email, userWalletInfo?.address, userWalletInfo?.private];
 
         const userInserted = await DatabaseOperations.dbConnection.query(insertUserQuery, queryValues);
         if (userInserted.rowCount > 0) {
@@ -389,12 +390,11 @@ class LitecoinOperations extends DatabaseOperations {
             try {
                 let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
                 const addrData = addrResponse.data
-    
                 // encrypt priv key first
-                let encryptedPrivKey = encryptKey(addrData.private);
-    
+                addrData.private = encrypt(addrData.private);
+                
                 // update that users wallet attribute
-                await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
+                // await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
     
                 return addrData
             } catch (error) {
@@ -406,7 +406,7 @@ class LitecoinOperations extends DatabaseOperations {
                 let addrData = addrResponse.data;
     
                 // encrypt priv key first
-                addrData.private = encryptKey(addrData.private);
+                addrData.private = encrypt(addrData.private);
     
                 return addrData
             } catch (error) {
@@ -484,8 +484,21 @@ class LitecoinOperations extends DatabaseOperations {
         // look up the sender's address in the table to get their private key
         let query = 'SELECT wallet_pk FROM users WHERE wallet_address=$1'
         const encryptedPrivKey = await DatabaseOperations.dbConnection.query(query, [sendingAddr]);
-        const rawPrivKey = decryptKey(encryptedPrivKey.rows[0]);
+        const rawPrivKey = decrypt(encryptedPrivKey.rows[0]);
         return rawPrivKey;
+    }
+
+    async getWalletOwner(username: string): Promise<{username: string; wallet_address: string}>  {
+        let query = 'SELECT username, wallet_address FROM users WHERE username=$1';
+        let value = [username];
+
+        let userData = (await DatabaseOperations.dbConnection.query(query, value)).rows[0];
+        return userData
+    }
+
+    async fetchWalletBalance(walletAddress: string): Promise<number> {
+        const walletData: BlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${walletAddress}/balance?${this.#token}`)).data;
+        return walletData.balance
     }
 }
 
