@@ -1,14 +1,12 @@
 'use strict';
 export { };
 import { Request, Response } from 'express';
-import {XRPWalletInfo } from '../models/dataModels.js';
+import {BlockCypherAddressData } from '../models/dataModels.js';
 import express from 'express';
 import { dbOps, ltcOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
-import { mainLogger, xrpLogger } from '../loggerSetup/logSetup.js';
-import axios from 'axios';
+import { mainLogger } from '../loggerSetup/logSetup.js';
 import { encrypt, decrypt } from './encrypt.js';
-import {rippleApi} from '../RippleConnection/ripple_setup.js';
 let router = express.Router();
 
 router.post('/create-ltc-addr', async (req: Request, res: Response) => {
@@ -23,8 +21,17 @@ router.post('/get-wallet-balance', async (req: Request, res: Response) => {
         let walletOwnerData = await ltcOps.getWalletOwner(req.body.username);
 
         if (walletOwnerData.wallet_address == req.body.address) {
-            let balance = await ltcOps.fetchWalletBalance(req.body.address);
-            res.status(200).json({balance});
+            try {
+                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
+                res.status(200).json({balance});
+            } catch (err) {
+                mainLogger.error(`
+                There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Status: ${err.response.status}\n Message: ${err.message}\n Data: ${err.response.data}`);
+                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
+                res.status(200).json({balance});
+            } finally {
+                res.status(500).send('There was an error getting your balance.');
+            }
         } else {
             res.status(401).send('This is not your wallet')
         }
