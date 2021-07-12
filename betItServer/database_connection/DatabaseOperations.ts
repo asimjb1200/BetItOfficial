@@ -340,7 +340,7 @@ class WagerDataOperations extends DatabaseOperations {
     }
 
     async insertIntoEscrow(addr: string, privKey: string, id: number) {
-        let query = "insert into escrow (address, private_key, wager_id) values ($1, $2, (select id from wagers where id=$3)"
+        let query = "insert into escrow (address, private_key, wager_id) values ($1, $2, (select id from wagers where id=$3))"
         await DatabaseOperations.dbConnection.query(query, [addr, privKey, id]);
         return 'OK'
     }
@@ -351,16 +351,16 @@ class WagerDataOperations extends DatabaseOperations {
         return winner;
     }
 
-    private async createWager(bettor: string, amount: number, game_id: number, chosen_team: number, fader: string ="") {
-        // TODO: create the escrow wallet and hold the data in memory
+    async createWager(bettor: string, amount: number, game_id: number, chosen_team: number, fader: string ="") {
+        // create the escrow wallet and hold the data in memory
         let escrowAddr = await ltcOps.createAddr(true);
-
-        // TODO: create the wager and insert it into the wager's table
+        console.log(escrowAddr);
+        // create the wager and insert it into the wager's table
         let wagerInsertQuery = 'INSERT INTO wagers (bettor, wager_amount, game_id, is_active, bettor_chosen_team, escrow_address) values ($1, $2, $3, $4, $5, $6) RETURNING *'
-        let values = [bettor, amount, game_id, true, chosen_team, escrowAddr!.address];
+        let values = [bettor, amount, game_id, false, chosen_team, escrowAddr?.address];
         const wagerInsert: WagerModel = (await DatabaseOperations.dbConnection.query(wagerInsertQuery, values)).rows[0];
-
-        // TODO: now insert the escrow addr info into the escrow table, using the wager's if as the FK
+        console.log(wagerInsert);
+        // now insert the escrow addr info into the escrow table, using the wager's id as the FK
         if (escrowAddr) {
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
         }
