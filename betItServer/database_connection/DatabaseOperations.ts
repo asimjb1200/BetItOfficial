@@ -354,12 +354,12 @@ class WagerDataOperations extends DatabaseOperations {
     async createWager(bettor: string, amount: number, game_id: number, chosen_team: number, fader: string ="") {
         // create the escrow wallet and hold the data in memory
         let escrowAddr = await ltcOps.createAddr(true);
-        console.log(escrowAddr);
+
         // create the wager and insert it into the wager's table
         let wagerInsertQuery = 'INSERT INTO wagers (bettor, wager_amount, game_id, is_active, bettor_chosen_team, escrow_address) values ($1, $2, $3, $4, $5, $6) RETURNING *'
         let values = [bettor, amount, game_id, false, chosen_team, escrowAddr?.address];
         const wagerInsert: WagerModel = (await DatabaseOperations.dbConnection.query(wagerInsertQuery, values)).rows[0];
-        console.log(wagerInsert);
+
         // now insert the escrow addr info into the escrow table, using the wager's id as the FK
         if (escrowAddr) {
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
