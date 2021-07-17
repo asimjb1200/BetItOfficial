@@ -53,4 +53,9 @@ router.post('/create-wager', async (req: Request, res: Response) => {
     }
 });
 
+router.post('/check-for-fader', async (req: Request, res: Response) => {
+    let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
+    res.status(200).send(wagerIsAvailable);
+});
+
 export default router;
