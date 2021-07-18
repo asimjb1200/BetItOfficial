@@ -40,9 +40,9 @@ const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicag
   sportOps.gameDayCheck();
 });
 
-app.use('/wallet-handler', walletHandler);
+app.use('/wallet-handler', authenticateJWT, walletHandler);
 app.use('/sports-handler', authenticateJWT, sportsHandler);
-app.use('/wager-handler', wagerHandler);
+app.use('/wager-handler', authenticateJWT, wagerHandler);
 app.use('/users', usersRouter);
 
 export default app;

@@ -11,7 +11,6 @@ import axios, { AxiosResponse } from 'axios';
 import { AddressInformation } from "../models/dataModels";
 import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
-// import { decryptKey, decryptWalletKey, encryptKey, encryptWalletKey } from '../routes/encrypt.js';
 import { encrypt, decrypt } from '../routes/encrypt.js';
 import jwt from 'jsonwebtoken';
 
@@ -372,6 +371,14 @@ class WagerDataOperations extends DatabaseOperations {
         let updatedWager: WagerModel = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
 
         return updatedWager;
+    }
+
+    async wagerIsTaken(wagerId: number): Promise<boolean> {
+        const query = 'SELECT fader FROM wagers WHERE id=$1';
+        const values = [wagerId];
+        const lookup = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
+        console.log(lookup)
+        return (lookup.fader == '' || lookup.fader == null || lookup.fader == undefined) ? false : true
     }
 }
 
