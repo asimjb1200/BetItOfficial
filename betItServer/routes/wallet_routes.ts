@@ -23,7 +23,9 @@ router.post('/get-wallet-balance', async (req: Request, res: Response) => {
         if (walletOwnerData.wallet_address == req.body.address) {
             try {
                 let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
-                res.status(200).json({balance});
+                let dollarEquivalent: number = await ltcOps.fetchUSDPrice();
+                
+                res.status(200).json({balance, dollarEquivalent: balance * dollarEquivalent});
             } catch (err) {
                 mainLogger.error(`
                 There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Message: ${err.message}`);

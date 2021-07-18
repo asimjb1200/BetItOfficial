@@ -505,7 +505,14 @@ class LitecoinOperations extends DatabaseOperations {
 
     async fetchWalletBalance(walletAddress: string): Promise<number> {
         const walletData: BlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${walletAddress}/balance?${this.#token}`)).data;
-        return walletData.balance
+        return walletData.balance;
+
+    }
+
+    async fetchUSDPrice() {
+        let priceData = (await axios.get('https://api.coinbase.com/v2/prices/LTC-USD/buy')).data
+        console.log(priceData)
+        return Number(priceData.data.amount);
     }
 }
 
