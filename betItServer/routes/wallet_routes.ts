@@ -26,14 +26,12 @@ router.post('/get-wallet-balance', async (req: Request, res: Response) => {
                 res.status(200).json({balance});
             } catch (err) {
                 mainLogger.error(`
-                There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Status: ${err.response.status}\n Message: ${err.message}\n Data: ${err.response.data}`);
-                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
-                res.status(200).json({balance});
-            } finally {
-                res.status(500).send('There was an error getting your balance.');
+                There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Message: ${err.message}`);
+                // res.status(200).json({balance});
+                res.status(500).json({message:'There was an error getting your balance.'});
             }
         } else {
-            res.status(401).send('This is not your wallet')
+            res.status(401).json({message: 'This is not your wallet'})
         }
     }
 });
