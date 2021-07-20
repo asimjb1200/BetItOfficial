@@ -45,11 +45,19 @@ router.post('/create-wager', async (req: Request, res: Response) => {
     });
 
     if (allPropsPresent) {
-        const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
-        await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
-        res.status(200).send('Good')
+        if (typeof req.body.bettor == 'string' && 
+            typeof req.body.wagerAmount == 'number' && 
+            typeof req.body.bettorChosenTeam == 'number' &&
+            typeof req.body.gameId == 'number'
+            ) {
+                const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
+                await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
+                res.status(201).json({message: 'Wager Created'})
+            } else {
+                res.status(400).json({message:'Incorrect JSON body'});
+            }
     } else {
-        res.status(400).send('Missing necessary fields')
+        res.status(400).json({message:'Missing necessary fields'});
     }
 });
 

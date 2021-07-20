@@ -38,18 +38,6 @@ router.post('/get-wallet-balance', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/test-encryption/:pw', async (req: Request, res: Response) => {
-    const plainPrivateKey = req.params.pw;
-    const encryptedText = encrypt(plainPrivateKey);
-    res.send(encryptedText);
-});
-
-router.post('/test-decryption/:pw', async (req: Request, res: Response) => {
-    const plainPrivateKey = req.params.pw;
-    const decryptedText = decrypt(plainPrivateKey);
-    res.send(decryptedText);
-});
-
 router.get('/fund-master-wallet', (req: Request, res: Response) => {
 
 })
