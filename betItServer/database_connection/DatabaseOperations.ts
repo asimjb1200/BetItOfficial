@@ -100,6 +100,15 @@ class DatabaseOperations {
         }
     }
 
+    async swapPasswords(oldPasswordHash: string, newPasswordHash: string) {
+        let query = "UPDATE users SET password=$1 WHERE password=$2";
+        let values = [newPasswordHash, oldPasswordHash];
+
+        const updatedData = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
+
+        return updatedData;
+    }
+
     updateWalletAddr(walletAddr: string) {
 
     }
@@ -139,6 +148,17 @@ class DatabaseOperations {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
         return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+    }
+
+    async findUserAndPassword(username: string): Promise<string> {
+        let query = "SELECT password FROM users WHERE username=$1";
+        const values = [username];
+        const data = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
+        if (data) {
+            return data.password;
+        } else {
+            return "";
+        }
     }
 }
 
@@ -511,7 +531,6 @@ class LitecoinOperations extends DatabaseOperations {
 
     async fetchUSDPrice() {
         let priceData = (await axios.get('https://api.coinbase.com/v2/prices/LTC-USD/buy')).data
-        console.log(priceData)
         return Number(priceData.data.amount);
     }
 }
