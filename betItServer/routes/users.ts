@@ -76,7 +76,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     }
 });
 
-router.post('/change-password', async (req: Request, res: Response) => {
+router.post('/change-password', authenticateJWT, async (req: Request, res: Response) => {
 
   if (req.body.hasOwnProperty("username") && req.body.hasOwnProperty("oldPassword") && req.body.hasOwnProperty("newPassword") &&
       typeof req.body.username == 'string' && typeof req.body.oldPassword == 'string' && typeof req.body.newPassword == 'string') {
@@ -86,7 +86,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
         let passwordOnFile = await dbOps.findUserAndPassword(username);
         
         if (passwordOnFile) {
-          const passwordsMatch = await bcrypt.compare(req.body.oldPassword, passwordOnFile);
+          const passwordsMatch = await bcrypt.compare(oldPassword, passwordOnFile);
 
           if (passwordsMatch) {
             // create a hash from the new password
@@ -95,7 +95,7 @@ router.post('/change-password', async (req: Request, res: Response) => {
             // swap the passwords out
             const passwordIsChanged = await dbOps.swapPasswords(passwordOnFile, newPasswordHash);
   
-            res.send('ok');
+            res.status(200).json({message: "Password updated"});
           } else {
             res.status(403).json({message: 'That password was incorrect'});
           }
@@ -103,6 +103,8 @@ router.post('/change-password', async (req: Request, res: Response) => {
           res.status(404).json({message: "That password wasn't in our records."})
         }
 
+      } else {
+        res.status(400);
       }
 });
 
