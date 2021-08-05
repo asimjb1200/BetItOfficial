@@ -83,17 +83,17 @@ router.post('/change-password', authenticateJWT, async (req: Request, res: Respo
         const {newPassword, oldPassword, username} = req.body;
 
         // grab the data that I have on file
-        let passwordOnFile = await dbOps.findUserAndPassword(username);
+        let passwordHashOnFile = await dbOps.findUserAndPassword(username);
         
-        if (passwordOnFile) {
-          const passwordsMatch = await bcrypt.compare(oldPassword, passwordOnFile);
+        if (passwordHashOnFile) {
+          const passwordsMatch = await bcrypt.compare(oldPassword, passwordHashOnFile);
 
           if (passwordsMatch) {
             // create a hash from the new password
             let newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
   
             // swap the passwords out
-            const passwordIsChanged = await dbOps.swapPasswords(passwordOnFile, newPasswordHash);
+            const passwordIsChanged = await dbOps.swapPasswords(passwordHashOnFile, newPasswordHash);
   
             res.status(200).json({message: "Password updated"});
           } else {
@@ -106,6 +106,25 @@ router.post('/change-password', authenticateJWT, async (req: Request, res: Respo
       } else {
         res.status(400);
       }
+});
+
+router.post('/change-email', authenticateJWT, async (req: Request, res: Response) => {
+  const {username, password, newEmail} = req.body;
+  // make sure the password is the correct one for the user
+  let passwordHashOnFile = await dbOps.findUserAndPassword(username);
+
+  if (passwordHashOnFile) {
+    const passwordsMatch = await bcrypt.compare(password, passwordHashOnFile);
+
+    if (passwordsMatch) {
+      const emailUpdated = await dbOps.updateEmail(username, newEmail);
+      emailUpdated ? res.status(200).json({message: "Email updated."}) : res.status(500).json({message: "There was an error updating the email."})
+    } else {
+      res.status(403).json({message: "Wrong password for that account"});
+    }
+  } else {
+    res.status(404).json({message: "That user doesn't exist."});
+  }
 });
 
 export default router;

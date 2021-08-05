@@ -160,6 +160,13 @@ class DatabaseOperations {
             return "";
         }
     }
+
+    async updateEmail(username: string, newEmail: string) {
+        let query = "UPDATE users SET email=$1 WHERE username=$2";
+        const values = [newEmail, username];
+        const updateQuery = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
+        return true;
+    }
 }
 
 class SportsDataOperations extends DatabaseOperations {
