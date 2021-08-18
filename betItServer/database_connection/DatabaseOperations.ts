@@ -331,6 +331,17 @@ class WagerDataOperations extends DatabaseOperations {
         super();
     }
 
+    async checkAddressWagerCount(walletAddr: string) {
+        const sql = `
+            SELECT count(*) 
+            from wagers 
+            WHERE $1
+            IN (bettor, fader);
+            `;
+        const wagerCountData = (await DatabaseOperations.dbConnection.query(sql, [walletAddr])).rows[0];
+        return wagerCountData;
+    }
+
     async getWagersByGameId(gameId: number) {
         try {
             const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;

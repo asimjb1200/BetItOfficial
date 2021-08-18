@@ -61,6 +61,15 @@ router.post('/create-wager', async (req: Request, res: Response) => {
     }
 });
 
+router.get('/check-number-of-bets/:walletAddress', async (req: Request, res: Response) => {
+const walletOccurrences = await wagerOps.checkAddressWagerCount(req.params.walletAddress);
+if (walletOccurrences != null) {
+    res.status(200).json({numberOfBets: walletOccurrences.count})
+} else {
+    res.status(200).json({numberOfBets: 0});
+}
+});
+
 router.post('/check-for-fader', async (req: Request, res: Response) => {
     let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
     res.status(200).send(wagerIsAvailable);
