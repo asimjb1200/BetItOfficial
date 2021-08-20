@@ -199,3 +199,14 @@ export type BlockCypherAddressData = {
     unconfirmed_n_tx: number,
     final_n_tx: number
 }
+
+export type AllWagersForAddress = {
+    usersWagers: [WagerStatus];
+}
+
+export type WagerStatus = {
+    isActive: boolean,
+    amount: number,
+    gameStartTime: Date,
+    chosenTeam: number
+}

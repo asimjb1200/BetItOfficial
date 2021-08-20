@@ -70,6 +70,15 @@ if (walletOccurrences != null) {
 }
 });
 
+router.get('/get-users-wagers', async (req: Request, res: Response) => {
+    const walletAddr = req.query.walletAddr as string;
+
+    // search the database for the user's bets
+    const userWagers = await wagerOps.getUsersWagers(walletAddr);
+    res.status(200).json({userWagers});
+    // if found, return the {isActive, amount, gameStartTime, didWin}
+});
+
 router.post('/check-for-fader', async (req: Request, res: Response) => {
     let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
     res.status(200).send(wagerIsAvailable);

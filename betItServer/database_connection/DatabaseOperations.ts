@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -340,6 +340,24 @@ class WagerDataOperations extends DatabaseOperations {
             `;
         const wagerCountData = (await DatabaseOperations.dbConnection.query(sql, [walletAddr])).rows[0];
         return wagerCountData;
+    }
+
+    async getUsersWagers(walletAddr: string) {
+        const sql = `
+            SELECT 
+                wagers.is_active as "isActive", 
+                wagers.wager_amount as "amount",
+                games.game_begins as "gameStartTime",
+                wagers.bettor_chosen_team as "chosenTeam"
+            FROM 
+                wagers
+                    INNER JOIN games
+                    ON wagers.game_id = games.game_id
+            WHERE 
+                bettor=$1`;
+        const wagerData: WagerStatus[] = (await DatabaseOperations.dbConnection.query(sql, [walletAddr])).rows;
+        
+        return wagerData;
     }
 
     async getWagersByGameId(gameId: number) {
