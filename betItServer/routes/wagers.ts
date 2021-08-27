@@ -5,6 +5,7 @@ import { dbOps, ltcOps, wagerOps } from '../database_connection/DatabaseOperatio
 import { WagerModel } from '../models/dbModels/dbModels.js';
 let router = express.Router();
 import {io} from '../bin/www.js'
+import { WagerStatus } from '../models/dataModels.js';
 
 router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty("gameId") && typeof req.body.gameId == 'number') {
@@ -74,8 +75,8 @@ router.get('/get-users-wagers', async (req: Request, res: Response) => {
     const walletAddr = req.query.walletAddr as string;
 
     // search the database for the user's bets
-    const userWagers = await wagerOps.getUsersWagers(walletAddr);
-    res.status(200).json({userWagers});
+    const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
+    res.status(200).json(userWagers);
     // if found, return the {isActive, amount, gameStartTime, didWin}
 });
 
