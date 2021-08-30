@@ -331,6 +331,10 @@ class WagerDataOperations extends DatabaseOperations {
         super();
     }
 
+    async cancelWager() {
+
+    }
+
     async checkAddressWagerCount(walletAddr: string) {
         const sql = `
             SELECT count(*) 
@@ -344,7 +348,8 @@ class WagerDataOperations extends DatabaseOperations {
 
     async getUsersWagers(walletAddr: string) {
         const sql = `
-            SELECT 
+            SELECT
+                wagers.id as "wagerId", 
                 wagers.is_active as "isActive", 
                 wagers.wager_amount as "amount",
                 games.game_begins as "gameStartTime",
@@ -358,6 +363,14 @@ class WagerDataOperations extends DatabaseOperations {
         const wagerData: WagerStatus[] = (await DatabaseOperations.dbConnection.query(sql, [walletAddr])).rows;
         
         return wagerData;
+    }
+
+    async deleteWager(wagerId: number) {
+        const sql = `
+            DELETE FROM wagers
+            WHERE id=$1
+        `
+        await DatabaseOperations.dbConnection.query(sql, [wagerId]);
     }
 
     async getWagersByGameId(gameId: number) {

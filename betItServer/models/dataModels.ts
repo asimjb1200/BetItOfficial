@@ -205,6 +205,7 @@ export type AllWagersForAddress = {
 }
 
 export type WagerStatus = {
+    wagerId: number,
     isActive: boolean,
     amount: number,
     gameStartTime: Date,

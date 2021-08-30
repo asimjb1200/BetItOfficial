@@ -71,6 +71,20 @@ if (walletOccurrences != null) {
 }
 });
 
+router.post('/delete-wager', async (req: Request, res: Response) => {
+    if (req.body.hasOwnProperty('wagerId') && typeof req.body.wagerId == 'number') {
+        try {
+            await wagerOps.deleteWager(req.body.wagerId);
+            res.status(200).send('OK');
+        } catch(err) {
+            console.log(err)
+            res.status(500).send({message: "Something went wrong when trying to delete. Try again."})
+        }
+    } else {
+        res.status(400).send('invalid data sent');
+    }
+});
+
 router.get('/get-users-wagers', async (req: Request, res: Response) => {
     const walletAddr = req.query.walletAddr as string;
 
