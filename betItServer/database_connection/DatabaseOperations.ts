@@ -369,6 +369,7 @@ class WagerDataOperations extends DatabaseOperations {
         const sql = `
             DELETE FROM wagers
             WHERE id=$1
+            AND is_active=false
         `
         await DatabaseOperations.dbConnection.query(sql, [wagerId]);
     }
