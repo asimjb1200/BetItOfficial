@@ -9,11 +9,16 @@ import { WagerStatus } from '../models/dataModels.js';
 
 router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty("gameId") && typeof req.body.gameId == 'number') {
-        let wagers = await wagerOps.getWagersByGameId(req.body.gameId);
-        if (wagers.length > 0) {
-            res.status(200).json(wagers);
-        } else {
-            res.status(404).json([]);
+        try {
+            let wagers = await wagerOps.getWagersByGameId(req.body.gameId);
+            if (wagers.length > 0) {
+                res.status(200).json(wagers);
+            } else {
+                res.status(404).json([]);
+            }
+        } catch (error) {
+            wagerLogger.error(`An error occurred when fetching wagers for game ${req.body.gameId}.\n ${error}`);
+            res.status(500).json({message: "Something went wrong while trying to fetch wagers for the game."})
         }
     } else {
         res.status(400).send('invalid game id');
@@ -25,13 +30,18 @@ router.post('/add-fader-to-wager', async (req: Request, res: Response) => {
         const faderAddr = req.body.fader_address
         const wagerId = req.body.wager_id
 
-        // make the update to the wager
-        let updatedWager: WagerModel = await wagerOps.updateWagerWithFader(wagerId, faderAddr);
+        try {
+            // make the update to the wager
+            let updatedWager: WagerModel = await wagerOps.updateWagerWithFader(wagerId, faderAddr);
 
-        // emit the updated wager to the app so that everyone will update their views
-        io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
+            // emit the updated wager to the app so that everyone will update their views
+            io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
 
-        return res.status(200).json(updatedWager);
+            return res.status(200).json(updatedWager);
+        } catch (error) {
+            wagerLogger.error(`Wasn't able to add a fader ${req.body.fader_address} to wager ${req.body.wager_id}.\n ${error}`)
+            return res.status(500).json({message: "Something went wrong while trying to add a fader."})
+        }
     }
 });
 
@@ -52,8 +62,13 @@ router.post('/create-wager', async (req: Request, res: Response) => {
             typeof req.body.gameId == 'number'
             ) {
                 const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
-                await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
-                res.status(201).json({message: 'Wager Created'})
+                try {
+                    await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
+                    res.status(201).json({message: 'Wager Created'});
+                } catch (error) {
+                    wagerLogger.error(`An error occurred when creating a new wager for ${bettor} for team ${bettorChosenTeam} on game ${gameId} with an amount of ${wagerAmount} LTC.\n ${error}`);
+                    res.status(500).json({message: "Something went wrong while trying to create the wager."});
+                }
             } else {
                 res.status(400).json({message:'Incorrect JSON body'});
             }
@@ -78,6 +93,7 @@ router.post('/delete-wager', async (req: Request, res: Response) => {
             res.status(200).send('OK');
         } catch(err) {
             console.log(err)
+            wagerLogger.error(`Problem trying to delete wager ${req.body.wagerId}.\n ${err}`)
             res.status(500).send({message: "Something went wrong when trying to delete. Try again."})
         }
     } else {
@@ -88,15 +104,25 @@ router.post('/delete-wager', async (req: Request, res: Response) => {
 router.get('/get-users-wagers', async (req: Request, res: Response) => {
     const walletAddr = req.query.walletAddr as string;
 
-    // search the database for the user's bets
-    const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
-    res.status(200).json(userWagers);
+    try {
+        // search the database for the user's bets
+        const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
+        res.status(200).json(userWagers);
+    } catch (error) {
+        wagerLogger.error(`Error when fetching wagers for ${req.query.walletAddr}.\n${error}`);
+        res.status(500).json({message: 'There was a problem fetching the records'})
+    }
     // if found, return the {isActive, amount, gameStartTime, didWin}
 });
 
 router.post('/check-for-fader', async (req: Request, res: Response) => {
-    let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
-    res.status(200).send(wagerIsAvailable);
+    try {
+        let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
+        res.status(200).send(wagerIsAvailable);
+    } catch (error) {
+        wagerLogger.error(`Error occured when checking for a fader for wager ${req.body.wagerId}.\n ${error}`);
+        res.status(500).json({message: "Something went wrong while fetching the user's wager."});
+    }
 });
 
 export default router;
