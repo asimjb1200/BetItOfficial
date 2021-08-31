@@ -32,7 +32,6 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       throw new Error('Invalid email address attempted.')
     }
   } catch (error) {
-    console.log(error)
     userLogger.error("Error when trying to register user:  " + error);
     res.sendStatus(500);
   }
