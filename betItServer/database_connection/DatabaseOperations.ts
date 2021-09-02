@@ -436,7 +436,13 @@ class WagerDataOperations extends DatabaseOperations {
     }
 
     async updateWagerWithFader(wagerId: number, fader: string) {
-        let query = 'UPDATE wagers SET fader=$1, is_active=true WHERE id=$2 RETURNING *';
+        // make sure the wager isn't taken and then update
+        let query = `
+            UPDATE wagers 
+            SET fader=$1, is_active=true 
+            WHERE id=$2 AND fader IS NULL
+            RETURNING *
+        `;
         let values = [fader, wagerId];
         let updatedWager: WagerModel = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
 
