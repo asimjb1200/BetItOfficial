@@ -215,7 +215,12 @@ class SportsDataOperations extends DatabaseOperations {
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
         try {
-            const games = await DatabaseOperations.dbConnection.query("select * from games where game_begins=$1", [queryThisDate])
+            const sql = `
+                SELECT *
+                FROM games
+                WHERE CAST(game_begins as DATE)=$1
+            `;
+            const games = await DatabaseOperations.dbConnection.query(sql, [queryThisDate])
             return games.rows
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
@@ -370,7 +375,7 @@ class WagerDataOperations extends DatabaseOperations {
             DELETE FROM wagers
             WHERE id=$1
             AND is_active=false
-        `
+        `;
         await DatabaseOperations.dbConnection.query(sql, [wagerId]);
     }
 
