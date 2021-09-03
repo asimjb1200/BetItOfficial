@@ -6,7 +6,7 @@ import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
-import { GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
+import { EscrowWallet, GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
 import axios, { AxiosResponse } from 'axios';
 import { AddressInformation } from "../models/dataModels";
 import bitcoinjs from "bitcoinjs-lib";
@@ -398,7 +398,7 @@ class WagerDataOperations extends DatabaseOperations {
 
             if (updatedRecord.fader && updatedRecord.winning_team) {
                 const winner = this.determineWagerWinner(updatedRecord);
-                this.payWinner(winner, updatedRecord.wager_amount);
+                this.payWinner(winner, updatedRecord.wager_amount, updatedRecord.id);
             }
         });
 
@@ -409,8 +409,28 @@ class WagerDataOperations extends DatabaseOperations {
         });
     }
 
-    private payWinner(winner: string, amount: number) {
-        // TODO: payout to the winner's address from the escrow wallet
+    private async payWinner(winner: string, amount: number, wagerId: number) {
+        // grab the private key from this wager's escrow wallet
+        const escrowSql = `
+            SELECT *
+            FROM escrow
+            WHERE wager_id=$1
+        `;
+        const escrowWallet: EscrowWallet = (await DatabaseOperations.dbConnection.query(escrowSql, [wagerId])).rows[0];
+
+        // decrypt the private key
+        const rawPrivKey = decrypt(escrowWallet.private_key);
+
+        // send cut to master wallet
+        await ltcOps.payTheHouse(escrowWallet.address, rawPrivKey, (escrowWallet.balance * 0.03))
+        
+        const balanceAfterMyCut = escrowWallet.balance - (escrowWallet.balance * 0.03);
+
+        // send crypto to winner's wallet
+        await ltcOps.payoutFromEscrow(escrowWallet.address, rawPrivKey, winner, balanceAfterMyCut);
+
+        // send notification to the winner
+
     }
 
     async insertIntoEscrow(addr: string, privKey: string, id: number) {
@@ -438,6 +458,7 @@ class WagerDataOperations extends DatabaseOperations {
         if (escrowAddr) {
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
         }
+
     }
 
     async updateWagerWithFader(wagerId: number, fader: string) {
@@ -471,6 +492,10 @@ class LitecoinOperations extends DatabaseOperations {
 
     public static get LitecoinInstance() {
         return this.ltcInstance || (this.ltcInstance = new this());
+    }
+
+    async fundEscrowForWager(bettor: string, fader: string) {
+        
     }
 
     async createAddr(escrow: Boolean, username?: string) {
@@ -557,6 +582,97 @@ class LitecoinOperations extends DatabaseOperations {
             return "problem creating tx"
         }
     }
+
+    async payTheHouse(sendingAddr: string, sendingPrivKey: string, amount: number) {
+        const myCut = amount * 0.03;
+        const amountInLitoshis = myCut * this.litoshiFactor;
+
+        // grab the master wallet address from the db
+        // const masterWallet: string = await DatabaseOperations.dbConnection.query().rows[0];
+        // create a buffer from the private key, expect a hex encoded format
+        const privKeyBuffer: Buffer = Buffer.from(sendingPrivKey, "hex");
+
+        // derive the public key from the private key so that I now have both
+        let keys = bitcoinjs.ECPair.fromPrivateKey(privKeyBuffer);
+
+        let newtx = {
+            inputs: [{ addresses: [sendingAddr] }],
+            outputs: [{ addresses: [process.env.masterWallet as string], value: amountInLitoshis }]
+        };
+
+        try {
+            // now create the new transaction and get the partially complete tx back to sign with our priv key
+            let tempTx: BlockCypherTxResponse = (await axios.post(`${this.#api}/txs/new?${this.#token}`, newtx)).data;
+
+            tempTx.pubkeys = [];
+
+            // use private key to sign the data in the 'tosign' array
+            tempTx.signatures = tempTx.tosign.map((tosign: any) => {
+                tempTx.pubkeys!.push(keys.publicKey.toString('hex'));
+                return bitcoinjs.script.signature.encode(
+                    keys.sign(Buffer.from(tosign, "hex")),
+                    0x01,
+                ).toString("hex").slice(0, -2);
+            });
+
+            try {
+                // now send the transaction
+                let sendMe = await axios.post(`${this.#api}/txs/send?${this.#token}`, tempTx);
+                return "txs began"
+            } catch (error) {
+                return "problem sending tx"
+            }
+        } catch (error) {
+            return "problem creating tx"
+        }
+    }
+
+    async payoutFromEscrow(sendingAddr: string, sendingPrivKey: string, receivingAddr: string, amountInLtc: number) {
+        /* 
+            input: the address sending from
+            output: the address sending to
+            value: litoshis
+        */
+        const amountInLitoshis = amountInLtc * this.litoshiFactor;
+
+        // create a buffer from the private key, expect a hex encoded format
+        const privKeyBuffer: Buffer = Buffer.from(sendingPrivKey, "hex");
+
+        // derive the public key from the private key so that I now have both
+        let keys = bitcoinjs.ECPair.fromPrivateKey(privKeyBuffer);
+
+        let newtx = {
+            inputs: [{ addresses: [sendingAddr] }],
+            outputs: [{ addresses: [receivingAddr], value: amountInLitoshis }]
+        };
+
+        try {
+            // now create the new transaction and get the partially complete tx back to sign with our priv key
+            let tempTx: BlockCypherTxResponse = (await axios.post(`${this.#api}/txs/new?${this.#token}`, newtx)).data;
+
+            tempTx.pubkeys = [];
+
+            // use private key to sign the data in the 'tosign' array
+            tempTx.signatures = tempTx.tosign.map((tosign: any) => {
+                tempTx.pubkeys!.push(keys.publicKey.toString('hex'));
+                return bitcoinjs.script.signature.encode(
+                    keys.sign(Buffer.from(tosign, "hex")),
+                    0x01,
+                ).toString("hex").slice(0, -2);
+            });
+
+            try {
+                // now send the transaction
+                let sendMe = await axios.post(`${this.#api}/txs/send?${this.#token}`, tempTx);
+                return "txs began"
+            } catch (error) {
+                return "problem sending tx"
+            }
+        } catch (error) {
+            return "problem creating tx"
+        }
+    }
+
 
     async updateUserLtcAddr(username: string, newAddr: string, encryptedPrivKey: string) {
         try {

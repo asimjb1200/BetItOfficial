@@ -26,3 +26,10 @@ export type GameModel = {
     winning_team?: number;
     season: number
 }
+
+export type EscrowWallet = {
+    address: string;
+    private_key: string;
+    balance: number;
+    wager_id: number;
+}
