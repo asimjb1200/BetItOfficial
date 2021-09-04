@@ -34,9 +34,13 @@ router.post('/add-fader-to-wager', async (req: Request, res: Response) => {
             // make the update to the wager
             let updatedWager: WagerModel = await wagerOps.updateWagerWithFader(wagerId, faderAddr);
 
+            // Send the crypto from each user's wallet to the escrow address
+            let escrowFunded = await ltcOps.fundEscrowForWager(updatedWager.bettor, faderAddr, updatedWager.id);
+
             // emit the updated wager to the app so that everyone will update their views
             io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
 
+            // now everything is okay
             return res.status(200).json(updatedWager);
         } catch (error) {
             wagerLogger.error(`Wasn't able to add a fader ${req.body.fader_address} to wager ${req.body.wager_id}.\n ${error}`)

@@ -433,9 +433,9 @@ class WagerDataOperations extends DatabaseOperations {
 
     }
 
-    async insertIntoEscrow(addr: string, privKey: string, id: number) {
-        let query = "insert into escrow (address, private_key, wager_id) values ($1, $2, (select id from wagers where id=$3))"
-        await DatabaseOperations.dbConnection.query(query, [addr, privKey, id]);
+    async insertIntoEscrow(addr: string, privKey: string, id: number, balance: number) {
+        let query = "insert into escrow (address, private_key, balance, wager_id) values ($1, $2, $4, (select id from wagers where id=$3))"
+        await DatabaseOperations.dbConnection.query(query, [addr, privKey, id, balance]);
         return 'OK'
     }
 
@@ -456,7 +456,8 @@ class WagerDataOperations extends DatabaseOperations {
 
         // now insert the escrow addr info into the escrow table, using the wager's id as the FK
         if (escrowAddr) {
-            let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id);
+            // determine how much of the wager will be taken out due to tx fees before sending
+            let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id, (amount * 2));
         }
 
     }
@@ -479,7 +480,6 @@ class WagerDataOperations extends DatabaseOperations {
         const query = 'SELECT fader FROM wagers WHERE id=$1';
         const values = [wagerId];
         const lookup = (await DatabaseOperations.dbConnection.query(query, values)).rows[0];
-        console.log(lookup)
         return (lookup.fader == '' || lookup.fader == null || lookup.fader == undefined) ? false : true
     }
 }
@@ -494,8 +494,37 @@ class LitecoinOperations extends DatabaseOperations {
         return this.ltcInstance || (this.ltcInstance = new this());
     }
 
-    async fundEscrowForWager(bettor: string, fader: string) {
-        
+    async fundEscrowForWager(bettor: string, fader: string, wagerId: number) {
+        // grab the wager from the db
+        const wagerSql = `
+            SELECT *
+            FROM wagers
+            WHERE id=$1
+        `;
+
+        const wager: WagerModel = (await DatabaseOperations.dbConnection.query(wagerSql, [wagerId])).rows[0];
+
+        // find the escrow wallet for the wager
+        const escrowSql = `
+            SELECT address
+            FROM escrow
+            WHERE wager_id=$1
+        `;
+        const escrowAddr: string = await (await DatabaseOperations.dbConnection.query(escrowSql, [wager.id])).rows[0].address;
+        // take the money from each user's wallet and send it to escrow
+        let promiseArray = [
+            this.createTx(bettor, escrowAddr, wager.wager_amount),
+            this.createTx(fader, escrowAddr, wager.wager_amount)
+        ];
+
+        const escrowWalletFunded: string[] = await Promise.all(promiseArray);
+
+        if (escrowWalletFunded[0] == "txs began" && escrowWalletFunded[1] == "txs began") {
+            // send notification to the users that the crypto is being taken from their wallets
+            return true;
+        } else {
+            return false;
+        }
     }
 
     async createAddr(escrow: Boolean, username?: string) {
@@ -587,8 +616,6 @@ class LitecoinOperations extends DatabaseOperations {
         const myCut = amount * 0.03;
         const amountInLitoshis = myCut * this.litoshiFactor;
 
-        // grab the master wallet address from the db
-        // const masterWallet: string = await DatabaseOperations.dbConnection.query().rows[0];
         // create a buffer from the private key, expect a hex encoded format
         const privKeyBuffer: Buffer = Buffer.from(sendingPrivKey, "hex");
 
@@ -597,7 +624,7 @@ class LitecoinOperations extends DatabaseOperations {
 
         let newtx = {
             inputs: [{ addresses: [sendingAddr] }],
-            outputs: [{ addresses: [process.env.masterWallet as string], value: amountInLitoshis }]
+            outputs: [{ addresses: [process.env.MASTERWALLERADDRESS as string], value: amountInLitoshis }]
         };
 
         try {
