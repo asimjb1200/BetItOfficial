@@ -13,6 +13,7 @@ import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
 import { encrypt, decrypt } from '../routes/encrypt.js';
 import jwt from 'jsonwebtoken';
+import { allSocketConnections, io } from '../bin/www.js';
 
 dotenv.config();
 
@@ -421,16 +422,21 @@ class WagerDataOperations extends DatabaseOperations {
         // decrypt the private key
         const rawPrivKey = decrypt(escrowWallet.private_key);
 
-        // send cut to master wallet
-        await ltcOps.payTheHouse(escrowWallet.address, rawPrivKey, (escrowWallet.balance * 0.03))
-        
-        const balanceAfterMyCut = escrowWallet.balance - (escrowWallet.balance * 0.03);
+        try {
+            // send cut to master wallet
+            await ltcOps.payTheHouse(escrowWallet.address, rawPrivKey, (escrowWallet.balance * 0.03))
+            
+            const balanceAfterMyCut = escrowWallet.balance - (escrowWallet.balance * 0.03);
 
-        // send crypto to winner's wallet
-        await ltcOps.payoutFromEscrow(escrowWallet.address, rawPrivKey, winner, balanceAfterMyCut);
+            // send crypto to winner's wallet
+            await ltcOps.payoutFromEscrow(escrowWallet.address, rawPrivKey, winner, balanceAfterMyCut);
 
-        // send notification to the winner
-
+            // send notification to the winner's socket connection
+            io.to(allSocketConnections[winner].id).emit('payout started', {winner});
+            wagerLogger.info(`payout started for address ${winner} in the amount of ${balanceAfterMyCut} LTC for wager ${wagerId}`);
+        } catch (error) {
+            wagerLogger.error(`An error occurred during the payout function: ${error}`);
+        }
     }
 
     async insertIntoEscrow(addr: string, privKey: string, id: number, balance: number) {
@@ -459,7 +465,6 @@ class WagerDataOperations extends DatabaseOperations {
             // determine how much of the wager will be taken out due to tx fees before sending
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id, (amount * 2));
         }
-
     }
 
     async updateWagerWithFader(wagerId: number, fader: string) {

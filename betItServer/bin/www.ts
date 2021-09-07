@@ -26,23 +26,27 @@ let server = http.createServer(app);
  * Set up socket.io
  */
 export const io: Server = new Server(server);
+export const allSocketConnections: {[id: string]: Socket} = {};
 io.on("connection", (socket: Socket) => {
   // io.on("disconnect", (reason: string) => {
   //   console.log(reason);
   //   // remove the current socket from the connections array
-  //   connections.splice(connections.indexOf(socket), 1);
+  //   allSocketConnections[]
   // });
 
-  // // define a channel to listen to and communicate with clients on
+  // TODO: make the key for the socket objects the device's (user's) wallet address. that way
+  // i can send notifications to specific devices when necessary
+  console.log(socket.handshake.auth);
+
+  // keep track of the new connection, the key will be the user's wallet address
+  allSocketConnections[socket.handshake.auth.walletAddress as string] = socket;
+  
+  // define a channel to listen to and communicate with clients on
   socket.on('NodeJS Server Port', (data: any) => {
     console.log("data from the client: " + data);
     // send data back to the client
     io.emit('iOS Listeners', {msg: "We are now communicating"});
   });
-
-  // socket.on('Check updated wagers', async (data: any) => {
-  //   io.emit('wager update listeners', {updatedWagers: ''});
-  // });
 });
 
 /**
