@@ -526,6 +526,27 @@ class LitecoinOperations extends DatabaseOperations {
 
         if (escrowWalletFunded[0] == "txs began" && escrowWalletFunded[1] == "txs began") {
             // send notification to the users that the crypto is being taken from their wallets
+            io
+            .to(allSocketConnections[bettor].id)
+            .emit(
+                'wallet txs', 
+                {
+                    msg: `Tx Started`, 
+                    details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
+                    escrowWallet: `${escrowAddr}`
+                }
+            );
+
+            io
+            .to(allSocketConnections[fader].id)
+            .emit(
+                'wallet txs', 
+                {
+                    msg: `Tx Started`, 
+                    details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
+                    escrowWallet: `${escrowAddr}`
+                }
+            );
             return true;
         } else {
             return false;
