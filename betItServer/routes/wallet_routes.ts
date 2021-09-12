@@ -24,8 +24,7 @@ router.post('/get-wallet-balance', async (req: Request, res: Response) => {
             try {
                 let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
                 let dollarEquivalent: number = await ltcOps.fetchUSDPrice();
-                
-                res.status(200).json({balance, dollarEquivalent: balance * dollarEquivalent});
+                res.status(200).json({balance: Number((balance/10e7).toFixed(7)), dollarEquivalent: (Number((balance/10e7).toFixed(7)))*dollarEquivalent});
             } catch (err) {
                 mainLogger.error(`
                 There was an error with the block cypher balance endpoint.\n Address used: ${req.body.address}\n Message: ${err.message}`);

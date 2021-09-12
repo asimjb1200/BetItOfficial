@@ -460,7 +460,7 @@ class WagerDataOperations extends DatabaseOperations {
         let values = [bettor, amount, game_id, false, chosen_team, escrowAddr?.address];
         const wagerInsert: WagerModel = (await DatabaseOperations.dbConnection.query(wagerInsertQuery, values)).rows[0];
 
-        // now insert the escrow addr info into the escrow table, using the wager's id as the FK
+        // now insert the escrow addr info into the escrow table, using the wager's id as the FK. no crypto deposited yet
         if (escrowAddr) {
             // determine how much of the wager will be taken out due to tx fees before sending
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id, (amount * 2));
@@ -493,7 +493,7 @@ class LitecoinOperations extends DatabaseOperations {
     #api: string = 'https://api.blockcypher.com/v1/ltc/main';
     #token: string = `token=${process.env.BLOCKCYPHER_TOKEN}`;
     private static ltcInstance: LitecoinOperations;
-    litoshiFactor: number = 1e8;
+    litoshiFactor: number = 10e7;
 
     public static get LitecoinInstance() {
         return this.ltcInstance || (this.ltcInstance = new this());
@@ -589,7 +589,7 @@ class LitecoinOperations extends DatabaseOperations {
             output: the address sending to
             value: litoshis
         */
-        const amountInLitoshis = amountInLtc * this.litoshiFactor;
+        const amountInLitoshis = Number((amountInLtc * this.litoshiFactor).toFixed(7));
         let privKey = '';
 
         try {
@@ -640,7 +640,7 @@ class LitecoinOperations extends DatabaseOperations {
 
     async payTheHouse(sendingAddr: string, sendingPrivKey: string, amount: number) {
         const myCut = amount * 0.03;
-        const amountInLitoshis = myCut * this.litoshiFactor;
+        const amountInLitoshis = Number((myCut * this.litoshiFactor).toFixed(7));
 
         // create a buffer from the private key, expect a hex encoded format
         const privKeyBuffer: Buffer = Buffer.from(sendingPrivKey, "hex");
@@ -686,7 +686,7 @@ class LitecoinOperations extends DatabaseOperations {
             output: the address sending to
             value: litoshis
         */
-        const amountInLitoshis = amountInLtc * this.litoshiFactor;
+        const amountInLitoshis = Number((amountInLtc * this.litoshiFactor).toFixed(7));
 
         // create a buffer from the private key, expect a hex encoded format
         const privKeyBuffer: Buffer = Buffer.from(sendingPrivKey, "hex");
