@@ -210,6 +210,12 @@ class SportsDataOperations extends DatabaseOperations {
         }
     }
 
+    async getGameTimeFromDB(gameId: number) {
+        const sql = "select game_begins from games where game_id=$1";
+        const gameTimeResponse = (await DatabaseOperations.dbConnection.query(sql, [gameId])).rows[0];
+        return gameTimeResponse.game_begins;
+    }
+
     async getGamesByDate(date: Date) {
         const month = date.getMonth() + 1
         const day = date.getDate()

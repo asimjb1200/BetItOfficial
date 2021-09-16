@@ -30,6 +30,12 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     // }
 });
 
+router.get('/bball/get-game-time', async (req: Request, res: Response) => {
+    // send game id to database and return the game time
+    const gameTime = await sportOps.getGameTimeFromDB(Number(req.query.gameId));
+    res.status(200).json({gameTime});
+});
+
 router.get('/test', async (req, res) => {
     let index = 4;
     let requestArr: Promise<AxiosResponse<BallDontLieData>>[] = [];

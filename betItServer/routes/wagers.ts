@@ -12,6 +12,12 @@ router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
         try {
             let wagers = await wagerOps.getWagersByGameId(req.body.gameId);
             if (wagers.length > 0) {
+
+                // the numeric data type from the database comes in as a string
+                wagers.forEach(element => {
+                    element.wager_amount = Number(element.wager_amount);
+                });
+                
                 res.status(200).json(wagers);
             } else {
                 res.status(404).json([]);
