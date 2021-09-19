@@ -7,7 +7,7 @@ import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
 import { bballApi } from '../SportsData/Basketball.js';
 import { EscrowWallet, GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import { AddressInformation } from "../models/dataModels";
 import bitcoinjs from "bitcoinjs-lib";
 import dotenv from 'dotenv';
@@ -596,15 +596,9 @@ class LitecoinOperations extends DatabaseOperations {
             value: litoshis
         */
         const amountInLitoshis = Number((amountInLtc * this.litoshiFactor).toFixed(7));
-        let privKey = '';
 
-        try {
-            // retrieve the private key from the db
-            privKey = await this.retrievePrivKey(sendingAddr);
-        } catch (err) {
-            console.log(err);
-            return "couldn't retrieve private key from db";
-        }
+        // retrieve the private key from the db
+        let privKey = await this.retrievePrivKey(sendingAddr);
 
         // create a buffer from the private key, expect a hex encoded format
         const privKeyBuffer: Buffer = Buffer.from(privKey, "hex");
@@ -620,6 +614,9 @@ class LitecoinOperations extends DatabaseOperations {
         try {
             // now create the new transaction and get the partially complete tx back to sign with our priv key
             let tempTx: BlockCypherTxResponse = (await axios.post(`${this.#api}/txs/new?${this.#token}`, newtx)).data;
+
+            // check if the fees can be covered by the sender's wallet balance
+            
 
             tempTx.pubkeys = [];
 
@@ -637,10 +634,20 @@ class LitecoinOperations extends DatabaseOperations {
                 let sendMe = await axios.post(`${this.#api}/txs/send?${this.#token}`, tempTx);
                 return "txs began"
             } catch (error) {
-                return "problem sending tx"
+                if (axios.isAxiosError(error)) {
+                    const err: AxiosError = error;
+                    console.log(err.response?.data);
+                    mainLogger.error(`There was a problem when sending the tx: ${JSON.parse(err.response?.data.errors)}`)
+                }
+                return `problem sending tx`
             }
         } catch (error) {
-            return "problem creating tx"
+            if (axios.isAxiosError(error)) {
+                let err: AxiosError = error;
+                console.log(err.response?.data)
+                mainLogger.error("tx error: " + err.response?.data.errors)
+            }
+            return `problem creating tx`;
         }
     }
 
@@ -747,7 +754,7 @@ class LitecoinOperations extends DatabaseOperations {
         // look up the sender's address in the table to get their private key
         let query = 'SELECT wallet_pk FROM users WHERE wallet_address=$1'
         const encryptedPrivKey = await DatabaseOperations.dbConnection.query(query, [sendingAddr]);
-        const rawPrivKey = decrypt(encryptedPrivKey.rows[0]);
+        const rawPrivKey = decrypt(encryptedPrivKey.rows[0].wallet_pk);
         return rawPrivKey;
     }
 

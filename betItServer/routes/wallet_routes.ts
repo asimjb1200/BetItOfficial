@@ -47,10 +47,25 @@ router.post('/send-to-escrow', async (req: Request, res: Response) => {
 
 router.get('/pay-winner/:user', (req: Request, res: Response) => {
 
-})
+});
+
+router.post('/pay-user', async (req: Request, res: Response) => {
+    const {toAddress, fromAddress, ltcAmount} = req.body;
+    try {
+        let sendMoney = await ltcOps.createTx(req.body.fromAddress, req.body.toAddress, req.body.ltcAmount);
+        if (sendMoney == "txs began") {
+            res.status(200).json({message: "Transaction started"})
+        } else {
+            res.status(500).json({message: sendMoney});
+        }
+    } catch(err) {
+        mainLogger.error("transaction error: " + err);
+    }
+
+});
 
 router.get('/get-my-address/:user', (req: Request, res: Response) => {
 
-})
+});
 
 export default router;
