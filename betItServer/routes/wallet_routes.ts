@@ -52,7 +52,7 @@ router.get('/pay-winner/:user', (req: Request, res: Response) => {
 router.post('/pay-user', async (req: Request, res: Response) => {
     const {toAddress, fromAddress, ltcAmount} = req.body;
     try {
-        let sendMoney = await ltcOps.createTx(req.body.fromAddress, req.body.toAddress, req.body.ltcAmount);
+        let sendMoney = await ltcOps.createTx(req.body.fromAddress, req.body.toAddress, Number(req.body.ltcAmount));
         if (sendMoney == "txs began") {
             res.status(200).json({message: "Transaction started"})
         } else {
@@ -61,7 +61,6 @@ router.post('/pay-user', async (req: Request, res: Response) => {
     } catch(err) {
         mainLogger.error("transaction error: " + err);
     }
-
 });
 
 router.get('/get-my-address/:user', (req: Request, res: Response) => {

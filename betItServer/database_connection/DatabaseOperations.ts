@@ -373,7 +373,9 @@ class WagerDataOperations extends DatabaseOperations {
             WHERE 
                 bettor=$1`;
         const wagerData: WagerStatus[] = (await DatabaseOperations.dbConnection.query(sql, [walletAddr])).rows;
-        
+
+        // convert the amount data type into a number
+        wagerData.map((x: WagerStatus) => {x.amount = Number(x.amount)});
         return wagerData;
     }
 
