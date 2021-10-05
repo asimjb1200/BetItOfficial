@@ -347,6 +347,13 @@ class WagerDataOperations extends DatabaseOperations {
 
     }
 
+    async findEscrowAddrViaWagerId(wagerId: string): Promise<string> {
+        const sql = "SELECT address FROM escrow WHERE wager_id=$1";
+        const escrowAddr = await (await DatabaseOperations.dbConnection.query(sql, [wagerId])).rows[0].wager_id;
+
+        return escrowAddr;
+    }
+
     async checkAddressWagerCount(walletAddr: string) {
         const sql = `
             SELECT count(*) 
@@ -741,6 +748,15 @@ class LitecoinOperations extends DatabaseOperations {
         }
     }
 
+    async fetchAddressTxCount(address: string){
+        const walletData: BlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${address}/balance?${this.#token}`)).data;
+        return walletData.txrefs[0].confirmations;
+    }
+
+    async fetchFullAddressData(address: string) {
+        const walletData: BlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${address}/balance?${this.#token}`)).data;
+        return walletData;
+    }
 
     async updateUserLtcAddr(username: string, newAddr: string, encryptedPrivKey: string) {
         try {

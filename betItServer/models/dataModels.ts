@@ -188,6 +188,19 @@ export type BlockCypherTx = {
     outputs: BlockCypherTxOutput[];
 }
 
+export type BlockCypherTxRef = {
+    tx_hash: string,
+    block_height: number,
+    tx_input_n: number,
+    tx_output_n: number,
+    value: number,
+    ref_balance: number,
+    spent: boolean,
+    confirmations: number,
+    confirmed: Date,
+    double_spend: boolean
+}
+
 export type BlockCypherAddressData = {
     address: string,
     total_received: number,
@@ -197,7 +210,8 @@ export type BlockCypherAddressData = {
     final_balance: number,
     n_tx: number,
     unconfirmed_n_tx: number,
-    final_n_tx: number
+    final_n_tx: number,
+    txrefs: [BlockCypherTxRef]
 }
 
 export type AllWagersForAddress = {
