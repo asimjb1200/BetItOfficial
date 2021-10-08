@@ -1,3 +1,5 @@
+import { number } from "bitcoinjs-lib/types/script";
+
 export type AddressInformation = {
     data: {
         private: string;
@@ -160,6 +162,8 @@ export type BlockCypherTxInput = {
         age: number;
 }
 
+
+
 export type BlockCypherTxOutput = {
     value: number;
     script: string;
@@ -201,6 +205,48 @@ export type BlockCypherTxRef = {
     double_spend: boolean
 }
 
+export type TxHashInfo = {
+    block_hash: string,
+    block_height: number,
+    block_index: number,
+    hash: string,
+    addresses: string[],
+    total: number,
+    fees: number,
+    size: number,
+    vsize: number,
+    preference: string,
+    relayed_by: string,
+    confirmed: Date,
+    received: Date,
+    ver: number,
+    double_spend: false,
+    vin_sz: number,
+    vout_sz: number,
+    confirmations: number,
+    confidence: number,
+    inputs: TxHashInput[],
+    outputs: TxHashOutput[]
+}
+
+export type TxHashOutput = {
+    value: number,
+    script: string,
+    addresses: string[],
+    script_type: string
+}
+
+export type TxHashInput = {
+    prev_hash: string,
+    output_index: number,
+    script: string,
+    output_value: number,
+    sequence: number,
+    addresses: string[],
+    script_type: string,
+    age: number
+}
+
 export type BlockCypherAddressData = {
     address: string,
     total_received: number,
@@ -211,11 +257,24 @@ export type BlockCypherAddressData = {
     n_tx: number,
     unconfirmed_n_tx: number,
     final_n_tx: number,
-    txrefs: [BlockCypherTxRef]
+    txrefs: BlockCypherTxRef[]
+}
+
+export type FullBlockCypherAddressData = {
+    address: string,
+    total_received: number,
+    total_sent: number,
+    balance: number,
+    unconfirmed_balance: number,
+    final_balance: number,
+    n_tx: number,
+    unconfirmed_n_tx: number,
+    final_n_tx: number,
+    txs: BlockCypherTx[]
 }
 
 export type AllWagersForAddress = {
-    usersWagers: [WagerStatus];
+    usersWagers: WagerStatus[];
 }
 
 export type WagerStatus = {
@@ -224,4 +283,13 @@ export type WagerStatus = {
     amount: number,
     gameStartTime: Date,
     chosenTeam: number
+}
+
+export type WalletTxPreview = {
+    date: Date,
+    ltcAmount: number,
+    received: boolean,
+    fromAddress: string,
+    toAddress?: string,
+    fees: number
 }

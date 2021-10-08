@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, GameToday, JWTUser, LoginResponse, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, FullBlockCypherAddressData, GameToday, JWTUser, LoginResponse, TxHashInfo, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -758,6 +758,11 @@ class LitecoinOperations extends DatabaseOperations {
         return walletData;
     }
 
+    async fetchFullAddress(address: string) {
+        const walletData: FullBlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${address}/full?${this.#token}`)).data;
+        return walletData;
+    }
+
     async updateUserLtcAddr(username: string, newAddr: string, encryptedPrivKey: string) {
         try {
             let query = 'UPDATE users SET wallet_address=$1, wallet_pk=$2 WHERE username=$3';
@@ -787,6 +792,24 @@ class LitecoinOperations extends DatabaseOperations {
     async fetchWalletBalance(walletAddress: string): Promise<number> {
         const walletData: BlockCypherAddressData = (await axios.get(`${this.#api}/addrs/${walletAddress}/balance?${this.#token}`)).data;
         return walletData.balance;
+    }
+
+    async fetchInfoForTxArray(txHashArray: string[]) {
+        let requestArr: Promise<AxiosResponse<TxHashInfo>>[] = [];
+        txHashArray.forEach(x => {
+            requestArr.push(axios.get(`${this.#api}/txs/${x}`));
+        });
+
+        const txInfoForHashesResponses = await Promise.all(requestArr);
+        const txInfoForHashes: TxHashInfo[] = txInfoForHashesResponses.map(x => x.data);
+
+        // now turn litoshis into litecoins
+        txInfoForHashes.forEach(x => {x.total = (x.total/this.litoshiFactor)});
+        txInfoForHashes.forEach(x => {x.fees = (x.fees/this.litoshiFactor)});
+        return txInfoForHashes;
+    }
+
+    async fetchTxInformation(txHash: string) {
 
     }
 
