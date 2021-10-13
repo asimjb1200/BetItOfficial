@@ -293,3 +293,45 @@ export type WalletTxPreview = {
     toAddress?: string,
     fees: number
 }
+
+export type RapidApiSeasonResponse = {
+    api: {
+        status: number,
+        message: string,
+        results: number,
+        filters?: string[],
+        games: RapidApiNbaGameData[]
+    }
+}
+
+export type RapidApiNbaGameData = {
+    seasonYear:string
+    league:string
+    gameId:string
+    startTimeUTC:Date
+    endTimeUTC?:Date
+    arena:string
+    city:string
+    country:string
+    clock:string
+    gameDuration:string
+    currentPeriod:string
+    halftime:string
+    EndOfPeriod:string
+    seasonStage:string
+    statusShortGame:string
+    statusGame:string
+    vTeam:RapidApiTeamData,
+    hTeam: RapidApiTeamData
+}
+
+export type RapidApiTeamData = {
+    teamId:string
+    shortName:string
+    fullName:string
+    nickName:string
+    logo:string
+    score?: {
+        points:string
+    }
+}

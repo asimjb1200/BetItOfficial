@@ -1,9 +1,21 @@
 import axios, { AxiosResponse } from "axios";
 import { sportsLogger } from "../loggerSetup/logSetup";
-import { BallDontLieData, BallDontLieResponse } from "../models/dataModels";
+import { BallDontLieData, BallDontLieResponse, RapidApiSeasonResponse } from "../models/dataModels";
+import dotenv from 'dotenv';
+dotenv.config();
 
 class BasketballData {
     #mainApi: string = 'https://www.balldontlie.io/api/v1/';
+    #rapidApi: string = 'https://api-nba-v1.p.rapidapi.com/';
+    #rapidApiConfig = {
+        headers: {
+            'x-rapidapi-host': 'api-nba-v1.p.rapidapi.com',
+            'x-rapidapi-key': process.env.RAPIDAPIKEY!
+        }
+    };
+    constructor() {
+        
+    }
 
     async getAllRegSznGames(year: number) {
         // let sznData: BallDontLieData[] = [];
@@ -30,6 +42,12 @@ class BasketballData {
         let sznData: BallDontLieData[] = ([] as BallDontLieData[]).concat.apply([], gameData);
 
         return sznData;
+    }
+
+    /** This method uses Rapid API to get all games for one szn*/
+    async getAllGamesForSzn(year: number) {
+        let apiResponse: RapidApiSeasonResponse = (await axios.get(`${this.#rapidApi}games/seasonYear/${year}`, this.#rapidApiConfig)).data;
+        return apiResponse.api.games;
     }
 }
 

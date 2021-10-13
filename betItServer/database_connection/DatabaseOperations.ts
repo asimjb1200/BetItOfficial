@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, FullBlockCypherAddressData, GameToday, JWTUser, LoginResponse, TxHashInfo, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, FullBlockCypherAddressData, GameToday, JWTUser, LoginResponse, RapidApiNbaGameData, RapidApiSeasonResponse, TxHashInfo, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -173,38 +173,50 @@ class DatabaseOperations {
 class SportsDataOperations extends DatabaseOperations {
     private static _sportsInstance: SportsDataOperations;
     private ballDontLieApi = 'https://www.balldontlie.io/api/v1/';
+    #rapidApiNBA: string = 'https://api-nba-v1.p.rapidapi.com/';
+    #rapidApiConfig = {
+        headers: {
+            'x-rapidapi-host': 'api-nba-v1.p.rapidapi.com',
+            'x-rapidapi-key': process.env.RAPIDAPIKEY!
+        }
+    };
 
     public static get SportsInstance() {
         return this._sportsInstance || (this._sportsInstance = new this());
     }
 
+    /** 
+     * call this method when the database needs to be populated with games for the season
+    */
     async insertAllGamesForSeason() {
         let currentYear = new Date().getFullYear();
-        // const findCurrentSeason = 'SELECT season FROM games LIMIT 1';
-        // const games: DatabaseGameModel[] = (await DatabaseOperations.dbConnection.query(findCurrentSeason)).rows;
-        let insertNewGames: DatabaseGameModel[] = [];
-        let queryArray = [];
 
         try {
             // grab all of the games for the season..
-            const currentSznGames: BallDontLieData[] = await bballApi.getAllRegSznGames(--currentYear);
+            const currentSznGames: RapidApiNbaGameData[] = await bballApi.getAllGamesForSzn(currentYear);
 
             // grab only the data that I need for my database table (game_id, home_team, away_team, game_begins, season)
-            for (const game of currentSznGames) {
-                const { id, home_team, visitor_team, date, season } = game;
-                insertNewGames.push({ game_id: id, sport: 'Basketball', home_team: home_team.id, visitor_team: visitor_team.id, game_begins: date, season });
-            }
+            let insertNewGames: DatabaseGameModel[] =  currentSznGames.map(x => {
+                return {
+                    game_id: Number(x.gameId),
+                    game_begins: x.startTimeUTC,
+                    sport: 'Basketball',
+                    home_team: Number(x.hTeam.teamId),
+                    visitor_team: Number(x.vTeam.teamId),
+                    season: currentYear
+                } as DatabaseGameModel
+            });
 
+            let queryArray = [];
             // now insert each row into the db
             for (const x of insertNewGames) {
                 let insertQuery = 'INSERT INTO games (game_id, sport, home_team, visitor_team, game_begins, season) VALUES ($1, $2, $3, $4, $5, $6)';
                 let values = [x.game_id, x.sport, x.home_team, x.visitor_team, x.game_begins, x.season];
                 queryArray.push(DatabaseOperations.dbConnection.query(insertQuery, values));
-            }
+            };
 
             let allDataInserted = await Promise.all(queryArray);
             return 'Done';
-
         } catch (err) {
             sportsLogger.error(`Couldn't retrieve data for the ${currentYear} szn: ` + err);
         }
@@ -216,7 +228,7 @@ class SportsDataOperations extends DatabaseOperations {
         return gameTimeResponse.game_begins;
     }
 
-    async getGamesByDate(date: Date) {
+    async getGamesByDate(date: Date = new Date()) {
         const month = date.getMonth() + 1
         const day = date.getDate()
         const year = date.getFullYear();
@@ -225,13 +237,13 @@ class SportsDataOperations extends DatabaseOperations {
             const sql = `
                 SELECT *
                 FROM games
-                WHERE CAST(game_begins as DATE)=$1
+                WHERE date_trunc('day', game_begins)=$1
             `;
             const games = await DatabaseOperations.dbConnection.query(sql, [queryThisDate])
             return games.rows
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
-            return []
+            return [];
         }
     }
 
@@ -255,10 +267,10 @@ class SportsDataOperations extends DatabaseOperations {
         let today = new Date();
 
         // create a holder for each game id and the teams in each game
-        let gameHolder: GameToday[] = [];
+        let gamesHolder: GameToday[] = [];
 
-        // grab the dates of all the games
-        let games: GameModel[] = (await DatabaseOperations.dbConnection.query('SELECT * FROM games')).rows;
+        // query for games that are being played today
+        let games: GameModel[] = await this.getGamesByDate();
 
         if (games.length > 1 && games.length > 0) {
             // for each game returned
@@ -266,49 +278,61 @@ class SportsDataOperations extends DatabaseOperations {
                 // store the game & team ids of the games being played today
                 if (x.game_begins.setHours(0, 0, 0, 0) == today.setHours(0, 0, 0, 0)) {
                     const { home_team, visitor_team, game_id } = x;
-                    gameHolder.push({ home_team, visitor_team, game_id, game_date: today });
+                    gamesHolder.push({ home_team, visitor_team, game_id, game_date: today });
                 }
             });
 
-            if (gameHolder.length > 0) {
-                this.scoreChecker(gameHolder);
+            if (gamesHolder.length > 0) {
+                this.scoreChecker(gamesHolder);
             }
         } else {
             apiLogger.info("No games being played today.");
         }
     }
 
+    /**
+     * @param gameId the game to update
+     * @param winningTeam the id of the winning team
+     * 
+     * Save the winning team to the database along with the game's id.
+     * once the games table is updated, my database trigger will update the wagers table
+     * which will then kick off the payout process
+     */
     async updateGamesWithWinners(gameId: number, winningTeam: number) {
         // update the games table with the winner of each game
         let updateGamesQuery = "UPDATE games SET winning_team=$1 WHERE game_id=$2";
         await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, gameId]);
-
-        // once the games table is updated, my database trigger will update the wagers table
     }
 
-    scoreChecker(todaysGames: GameToday[]) {
-        let requestArr: any[] = [];
+    /** This method will run for each game that is being played
+     * on today's date
+     */
+    async scoreChecker(todaysGames: GameToday[]) {
+        let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
 
         let intervalId = setInterval(async () => {
             // grab the game id from each game and build a request with it
             todaysGames.forEach(x => {
-                requestArr.push(axios.get(`${this.ballDontLieApi}games/${x.game_id}`));
+                //requestArr.push(axios.get(`${this.ballDontLieApi}games/${x.game_id}`));
+                requestArr.push(axios.get(`${this.#rapidApiNBA}games/${x.game_id}`, this.#rapidApiConfig));
             });
 
             try {
-                let allGamesData: BallDontLieData[] = await Promise.all(requestArr);
+                let dataForGames: RapidApiSeasonResponse[] = (await Promise.all(requestArr)).map(x => x.data);
+                // let allGamesData: BallDontLieData[] = await Promise.all(requestArr);
                 // find out which games were completed
-                for (const gameData of allGamesData) {
+                for (const gameData of dataForGames) {
+                    let game = gameData.api.games[0];
                     // check to see if the game is over
-                    if (gameData.status == 'Final') {
-                        let winningTeam = (gameData.home_team_score > gameData.visitor_team_score) ? gameData.home_team.id : gameData.visitor_team.id;
+                    if (game.statusGame == 'Finished') {
+                        let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.hTeam.teamId);
 
                         try {
-                            // record the game winner and the score in the 'games' table
-                            this.updateGamesWithWinners(gameData.id, winningTeam);
+                            // record the game winner and the score in the 'games' table.
+                            this.updateGamesWithWinners(Number(game.gameId), winningTeam);
 
                             // remove that game from the todaysGames array
-                            todaysGames.filter(x => x.game_id !== gameData.id);
+                            todaysGames.filter(x => x.game_id !== Number(game.gameId));
 
                             if (todaysGames.length == 0) {
                                 // then stop the interval
@@ -317,7 +341,10 @@ class SportsDataOperations extends DatabaseOperations {
                                 requestArr = [];
                             }
                         } catch (error) {
-                            wagerLogger.error(`Issue saving game winner to db for game : ${gameData.id}. \n Error: ` + error);
+                            if (axios.isAxiosError(error)) {
+                                mainLogger.error(`There was an issue with the network request`)
+                            }
+                            wagerLogger.error(`Issue saving game winner to db for game : ${Number(game.gameId)}. \n Error: ` + error);
                         }
                     }
                 }
