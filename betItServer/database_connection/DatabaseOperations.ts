@@ -239,17 +239,46 @@ class SportsDataOperations extends DatabaseOperations {
                 FROM games
                 WHERE date_trunc('day', game_begins)=$1
             `;
-            const games = await DatabaseOperations.dbConnection.query(sql, [queryThisDate])
-            return games.rows
+            const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
+            return games
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
             return [];
         }
     }
 
-    async getAllGamesThisWeek() {
+    /**
+     * returns all games being played from the passed in date up to 7 days out.
+     * @param date the date to begin the search on
+     * @returns all games being played from the date up to 7 days out max.
+     */
+    async getAllGamesThisWeek(date = new Date()) {
+        // build the starting date
+        const month = date.getMonth() + 1
+        const day = date.getDate()
+        const year = date.getFullYear();
+        const startingDate = `${year}-${month}-${day}`;
+
+        // build the ending date
+        const endDateRaw: Date = new Date(date.setDate(date.getDate() + 7));
+        const endMonth = endDateRaw.getMonth() + 1;
+        const endDay = endDateRaw.getDate();
+        const endYear = endDateRaw.getFullYear();
+        const endingDate = `${endYear}-${endMonth}-${endDay}`;
+
         // query for games that are a week out from today
-        let games: GameModel[] = (await DatabaseOperations.dbConnection.query("select * from games where game_begins='2020-12-22 18:00:00-06'")).rows
+        const query = `
+            SELECT 
+                * 
+            FROM 
+                games
+            WHERE 
+                date_trunc('day', game_begins) 
+            BETWEEN 
+                $1 AND $2
+            ORDER BY game_begins ASC
+        `;
+        let games: GameModel[] = (await DatabaseOperations.dbConnection.query(query, [startingDate, endingDate])).rows
         return games;
     }
 
@@ -263,9 +292,6 @@ class SportsDataOperations extends DatabaseOperations {
     }
 
     async gameDayCheck() {
-        // grab today's date
-        let today = new Date();
-
         // create a holder for each game id and the teams in each game
         let gamesHolder: GameToday[] = [];
 
@@ -276,15 +302,14 @@ class SportsDataOperations extends DatabaseOperations {
             // for each game returned
             games.forEach(x => {
                 // store the game & team ids of the games being played today
-                if (x.game_begins.setHours(0, 0, 0, 0) == today.setHours(0, 0, 0, 0)) {
-                    const { home_team, visitor_team, game_id } = x;
-                    gamesHolder.push({ home_team, visitor_team, game_id, game_date: today });
-                }
+                const { home_team, visitor_team, game_id } = x;
+                gamesHolder.push({ home_team, visitor_team, game_id, game_date: x.game_begins });
             });
 
             if (gamesHolder.length > 0) {
-                this.scoreChecker(gamesHolder);
+                await this.scoreChecker(gamesHolder);
             }
+            return 'done';
         } else {
             apiLogger.info("No games being played today.");
         }
@@ -302,6 +327,7 @@ class SportsDataOperations extends DatabaseOperations {
         // update the games table with the winner of each game
         let updateGamesQuery = "UPDATE games SET winning_team=$1 WHERE game_id=$2";
         await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, gameId]);
+        return true;
     }
 
     /** This method will run for each game that is being played
@@ -313,45 +339,47 @@ class SportsDataOperations extends DatabaseOperations {
         let intervalId = setInterval(async () => {
             // grab the game id from each game and build a request with it
             todaysGames.forEach(x => {
-                //requestArr.push(axios.get(`${this.ballDontLieApi}games/${x.game_id}`));
-                requestArr.push(axios.get(`${this.#rapidApiNBA}games/${x.game_id}`, this.#rapidApiConfig));
+                requestArr.push(axios.get(`${this.#rapidApiNBA}games/gameId/${x.game_id}`, this.#rapidApiConfig));
             });
 
             try {
                 let dataForGames: RapidApiSeasonResponse[] = (await Promise.all(requestArr)).map(x => x.data);
-                // let allGamesData: BallDontLieData[] = await Promise.all(requestArr);
                 // find out which games were completed
                 for (const gameData of dataForGames) {
                     let game = gameData.api.games[0];
                     // check to see if the game is over
                     if (game.statusGame == 'Finished') {
-                        let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.hTeam.teamId);
+                        let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.vTeam.teamId);
 
                         try {
                             // record the game winner and the score in the 'games' table.
-                            this.updateGamesWithWinners(Number(game.gameId), winningTeam);
+                            let gameInserted = await this.updateGamesWithWinners(Number(game.gameId), winningTeam);
 
                             // remove that game from the todaysGames array
-                            todaysGames.filter(x => x.game_id !== Number(game.gameId));
+                            todaysGames = todaysGames.filter(x => x.game_id != Number(game.gameId));
 
                             if (todaysGames.length == 0) {
                                 // then stop the interval
                                 clearInterval(intervalId);
                             } else {
+                                // reset the array so that we have a fresh start for the next go around
                                 requestArr = [];
                             }
                         } catch (error) {
-                            if (axios.isAxiosError(error)) {
-                                mainLogger.error(`There was an issue with the network request`)
-                            }
                             wagerLogger.error(`Issue saving game winner to db for game : ${Number(game.gameId)}. \n Error: ` + error);
+                            // then stop the interval
+                            clearInterval(intervalId);
                         }
                     }
                 }
             } catch (apiErr) {
-                apiLogger.error("Trouble fetching game information during score checker interval: " + apiErr);
+                if (axios.isAxiosError(apiErr)) {
+                    apiLogger.error(`There was a problem with the Rapid API Nba endpoint: ${JSON.stringify(apiErr.response?.data)}`);
+                }
+                // then stop the interval
+                clearInterval(intervalId);
             }
-        }, 1200000);
+        }, 5000);
     }
 
     async getGameData(game: GameModel, intervalId: any) {
