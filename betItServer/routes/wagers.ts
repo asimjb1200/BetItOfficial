@@ -112,26 +112,32 @@ router.post('/delete-wager', async (req: Request, res: Response) => {
 });
 
 router.get('/get-users-wagers', async (req: Request, res: Response) => {
-    const walletAddr = req.query.walletAddr as string;
-
-    try {
-        // search the database for the user's bets
-        const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
-        res.status(200).json(userWagers);
-    } catch (error) {
-        wagerLogger.error(`Error when fetching wagers for ${req.query.walletAddr}.\n${error}`);
-        res.status(500).json({message: 'There was a problem fetching the records'})
+    if (req.query.walletAddr && typeof req.query.walletAddr == 'string') {
+        const walletAddr = req.query.walletAddr as string;
+        try {
+            // search the database for the user's bets
+            const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
+            res.status(200).json(userWagers);
+        } catch (error) {
+            wagerLogger.error(`Error when fetching wagers for ${req.query.walletAddr}.\n${error}`);
+            res.status(500).json({message: 'There was a problem fetching the records'})
+        }
+    } else {
+        res.status(400).json({message: 'that is not a string'})
     }
-    // if found, return the {isActive, amount, gameStartTime, didWin}
 });
 
 router.post('/check-for-fader', async (req: Request, res: Response) => {
-    try {
-        let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
-        res.status(200).send(wagerIsAvailable);
-    } catch (error) {
-        wagerLogger.error(`Error occured when checking for a fader for wager ${req.body.wagerId}.\n ${error}`);
-        res.status(500).json({message: "Something went wrong while fetching the user's wager."});
+    if (req.body.wagerId && typeof req.body.wagerId == 'number') {
+        try {
+            let wagerIsAvailable = await wagerOps.wagerIsTaken(req.body.wagerId);
+            res.status(200).send(wagerIsAvailable);
+        } catch (error) {
+            wagerLogger.error(`Error occured when checking for a fader for wager ${req.body.wagerId}.\n ${error}`);
+            res.status(500).json({message: "Something went wrong while fetching the user's wager."});
+        }
+    } else {
+        res.status(400).json({message: 'that is not a number'})
     }
 });
 

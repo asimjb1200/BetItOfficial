@@ -9,7 +9,7 @@ import { bballApi } from '../SportsData/Basketball.js';
 import { EscrowWallet, GameModel, WagerModel, WagerNotification } from '../models/dbModels/dbModels.js';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { AddressInformation } from "../models/dataModels";
-import bitcoinjs from "bitcoinjs-lib";
+import bitcoinjs, { ECPair } from "bitcoinjs-lib";
 import dotenv from 'dotenv';
 import { encrypt, decrypt } from '../routes/encrypt.js';
 import jwt from 'jsonwebtoken';
@@ -307,6 +307,10 @@ class SportsDataOperations extends DatabaseOperations {
             });
 
             if (gamesHolder.length > 0) {
+                /** TODO: do some research to see if this will hold up the thread loop.
+                 * consider spinning this up into it's own child process to allow for
+                 * better response times
+                */
                 await this.scoreChecker(gamesHolder);
             }
             return 'done';
@@ -462,6 +466,11 @@ class WagerDataOperations extends DatabaseOperations {
         }
     }
 
+    /**
+     * This method will listen for changes to the wagers table in the db.
+     * if the updated record contains a winning team, the payout process
+     * will begin for the winner of the wager.
+     */
     async setUpSubscriber() {
         // this will listen for changes to the wagers table
         this.dbSubscriber.notifications.on("wagers_updated", (payload: WagerNotification) => {
@@ -585,7 +594,7 @@ class LitecoinOperations extends DatabaseOperations {
             FROM escrow
             WHERE wager_id=$1
         `;
-        const escrowAddr: string = await (await DatabaseOperations.dbConnection.query(escrowSql, [wager.id])).rows[0].address;
+        const escrowAddr: string = (await DatabaseOperations.dbConnection.query(escrowSql, [wager.id])).rows[0].address;
         // take the money from each user's wallet and send it to escrow
         let promiseArray = [
             this.createTx(bettor, escrowAddr, wager.wager_amount),
@@ -783,8 +792,8 @@ class LitecoinOperations extends DatabaseOperations {
             tempTx.pubkeys = [];
 
             // use private key to sign the data in the 'tosign' array
-            tempTx.signatures = tempTx.tosign.map((tosign: any) => {
-                tempTx.pubkeys!.push(keys.publicKey.toString('hex'));
+            tempTx.signatures = tempTx.tosign.map((tosign: string) => {
+                tempTx.pubkeys?.push(keys.publicKey.toString('hex'));
                 return bitcoinjs.script.signature.encode(
                     keys.sign(Buffer.from(tosign, "hex")),
                     0x01,
