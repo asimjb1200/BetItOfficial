@@ -634,31 +634,23 @@ class LitecoinOperations extends DatabaseOperations {
 
     async createAddr(escrow: Boolean, username?: string) {
         if (!escrow && username) {
-            try {
-                let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
-                const addrData = addrResponse.data
-                // encrypt priv key first
-                addrData.private = encrypt(addrData.private);
-                
-                // update that users wallet attribute
-                // await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
-    
-                return addrData
-            } catch (error) {
-                console.log(error)
-            }
+            let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
+            const addrData = addrResponse.data
+            // encrypt priv key first
+            addrData.private = encrypt(addrData.private);
+            
+            // update that users wallet attribute
+            // await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
+
+            return addrData
         } else {
-            try {
-                let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
-                let addrData = addrResponse.data;
-    
-                // encrypt priv key first
-                addrData.private = encrypt(addrData.private);
-    
-                return addrData
-            } catch (error) {
-                console.log(error)
-            }
+            let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
+            let addrData = addrResponse.data;
+
+            // encrypt priv key first
+            addrData.private = encrypt(addrData.private);
+
+            return addrData;
         }
     }
 
