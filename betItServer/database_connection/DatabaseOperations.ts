@@ -185,6 +185,14 @@ class SportsDataOperations extends DatabaseOperations {
         return this._sportsInstance || (this._sportsInstance = new this());
     }
 
+    /** This method makes sure that games are at least than 30 minutes away from now */
+    gameIsMoreThan30MinsOut(game: GameModel, rightNow = Date.now()): boolean {
+        const thirtyMinsIinMilliseconds = 1.8e6; 
+        const delta = (game.game_begins.valueOf() - rightNow);
+
+        return delta > thirtyMinsIinMilliseconds;
+    }
+
     /** 
      * call this method when the database needs to be populated with games for the season
     */
@@ -239,6 +247,7 @@ class SportsDataOperations extends DatabaseOperations {
                 FROM games
                 WHERE date_trunc('day', game_begins)=$1
             `;
+
             const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
             return games
         } catch (error) {

@@ -33,9 +33,16 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     let date = new Date(req.body.date);
 
     let games: GameModel[] = await sportOps.getGamesByDate(date);
+
+    // filter out games that will be played within the next 30 minutes
+    let filteredGames: (GameModel | undefined)[] = games.map(element => {
+        if (sportOps.gameIsMoreThan30MinsOut(element)) {
+            return element;
+        }
+    });
     
-    if (games.length > 0) {
-        res.status(200).json(games);
+    if (filteredGames != null && filteredGames.length > 0) {
+        res.status(200).json(filteredGames);
     } else {
         res.status(404).send("No games today");
     }
