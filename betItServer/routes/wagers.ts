@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import axios from'axios';
 import { userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { dbOps, ltcOps, wagerOps } from '../database_connection/DatabaseOperations.js';
+import { dbOps, ltcOps, sportOps, wagerOps } from '../database_connection/DatabaseOperations.js';
 import { WagerModel } from '../models/dbModels/dbModels.js';
 let router = express.Router();
 import {io} from '../bin/www.js'
@@ -10,15 +10,30 @@ import { WagerStatus } from '../models/dataModels.js';
 router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty("gameId") && typeof req.body.gameId == 'number') {
         try {
-            let wagers = await wagerOps.getWagersByGameId(req.body.gameId);
+            let wagers: WagerModel[] = await wagerOps.getWagersByGameId(req.body.gameId);
             if (wagers.length > 0) {
 
                 // the numeric data type from the database comes in as a string
                 wagers.forEach(element => {
                     element.wager_amount = Number(element.wager_amount);
                 });
+
+                let wagersThatPassedTest: WagerModel[] = [];
                 
-                res.status(200).json(wagers);
+                // filter out wagers whose gametime is in 30 minutes or less
+                for (const x of wagers) {
+                    // first locate the gametime of the game that the wager is associated with
+                    const gameTime: Date = await sportOps.getGameTimeFromDB(x.game_id);
+                    if (sportOps.moreThanThirtyMinutesAway(gameTime)) {
+                        wagersThatPassedTest.push(x);
+                    }
+                }
+                
+                if (wagersThatPassedTest.length > 0) {
+                    res.status(200).json(wagersThatPassedTest);
+                } else {
+                    res.status(404).json([]);
+                }
             } else {
                 res.status(404).json([]);
             }

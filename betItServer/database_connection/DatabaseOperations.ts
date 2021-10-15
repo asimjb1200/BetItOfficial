@@ -193,6 +193,14 @@ class SportsDataOperations extends DatabaseOperations {
         return delta > thirtyMinsIinMilliseconds;
     }
 
+    /** this method compares the passed in date to Date.now() to see if the passed in date is at least 30 minutes in the future */
+    moreThanThirtyMinutesAway(dateToCheck: Date, rightNow = Date.now()) {
+        const thirtyMinsIinMilliseconds = 1.8e6;
+        const delta = (dateToCheck.valueOf() - rightNow);
+
+        return delta > thirtyMinsIinMilliseconds;
+    }
+
     /** 
      * call this method when the database needs to be populated with games for the season
     */
@@ -230,7 +238,7 @@ class SportsDataOperations extends DatabaseOperations {
         }
     }
 
-    async getGameTimeFromDB(gameId: number) {
+    async getGameTimeFromDB(gameId: number): Promise<Date> {
         const sql = "select game_begins from games where game_id=$1";
         const gameTimeResponse = (await DatabaseOperations.dbConnection.query(sql, [gameId])).rows[0];
         return gameTimeResponse.game_begins;
