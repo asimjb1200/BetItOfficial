@@ -471,15 +471,20 @@ class WagerDataOperations extends DatabaseOperations {
         await DatabaseOperations.dbConnection.query(sql, [wagerId]);
     }
 
-    async getWagersByGameId(gameId: number) {
-        try {
-            const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query('select * from wagers where game_id=$1', [gameId])).rows;
+    async getWagersByGameId(gameId: number, walletAddr?: string) {
+        let sql: string;
+        if (walletAddr) {
+            sql = 'select * from wagers where game_id=$1 and bettor <> $2';
+            const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query(sql, [gameId, walletAddr])).rows;
 
-            const availableWagers = wagers.length > 0 ? wagers.filter(wager => wager.is_active == false) : [];
+            const availableWagers = (wagers.length > 0) ? wagers.filter(wager => wager.is_active == false) : [];
             return availableWagers
-        } catch (error) {
-            mainLogger.error(`Error when retrieving wagers for gameId ${gameId}. \n Error: ${error}`);
-            return [];
+        } else {
+            sql = 'select * from wagers where game_id=$1'
+            const wagers: WagerModel[] = (await DatabaseOperations.dbConnection.query(sql, [gameId])).rows;
+
+            const availableWagers = (wagers.length > 0) ? wagers.filter(wager => wager.is_active == false) : [];
+            return availableWagers
         }
     }
 
