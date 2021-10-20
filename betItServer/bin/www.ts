@@ -5,8 +5,6 @@ const debug = Debug('betitserver:server');
 import {Server, Socket} from 'socket.io';
 import http from 'http';
 
-let connections: Socket[] = [];
-
 dotenv.config();
 
 /**
@@ -29,11 +27,12 @@ export const io: Server = new Server(server);
 export const allSocketConnections: {[id: string]: Socket} = {};
 
 io.on("connection", (socket: Socket) => {
-  // io.on("disconnect", (reason: string) => {
-  //   console.log(reason);
-  //   // remove the current socket from the connections array
-  //   allSocketConnections[]
-  // });
+  socket.on("disconnect me", (walletAddr: string) => {
+    // determine if that socket exists in the socket connection object
+    if (allSocketConnections[walletAddr]) {
+      delete allSocketConnections[walletAddr];
+    }
+  })
 
   // keep track of the new connection, the key will be the user's wallet address
   allSocketConnections[socket.handshake.auth.walletAddress as string] = socket;
