@@ -14,6 +14,8 @@ import dotenv from 'dotenv';
 import { encrypt, decrypt } from '../routes/encrypt.js';
 import jwt from 'jsonwebtoken';
 import { allSocketConnections, io } from '../bin/www.js';
+import { Socket } from 'socket.io';
+import { emailHelper } from '../EmailNotifications/EmailWorker.js';
 
 dotenv.config();
 
@@ -21,8 +23,7 @@ class DatabaseOperations {
     protected static dbConnection: Pool = new pg.Pool();
     protected dbSubscriber = createSubscriber({ connectionString: process.env.DATABASE_URL! });
     private static _instance: DatabaseOperations;
-
-
+    
     protected constructor() {
     }
 
@@ -87,6 +88,13 @@ class DatabaseOperations {
         }
     }
 
+    /** Find a user's email address via their username */
+    async getUserEmail(username: string): Promise<string> {
+        let sql = 'SELECT email FROM users WHERE username=$1';
+        let userData = (await DatabaseOperations.dbConnection.query(sql, [username])).rows[0];
+        return userData.email;
+    }
+
     async insertNewUser(username: string, pwHash: string, email: string) {
         // create a wallet for that user
         const userWalletInfo = await ltcOps.createAddr(false, username)
@@ -149,6 +157,13 @@ class DatabaseOperations {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
         return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+    }
+
+    /** Find an email address via a wallet address */
+    async getEmailAddress(walletAddr: string): Promise<string> {
+        const query = "SELECT email FROM users WHERE wallet_address=$1";
+        const data = (await DatabaseOperations.dbConnection.query(query, [walletAddr])).rows[0];
+        return data.email;
     }
 
     async findUserAndPassword(username: string): Promise<string> {
@@ -328,6 +343,11 @@ class SportsDataOperations extends DatabaseOperations {
                  * consider spinning this up into it's own child process to allow for
                  * better response times
                 */
+
+                const gameIds = gamesHolder.map(x => x.game_id);
+
+                await this.notifyUsersAboutGameTime(gameIds);
+
                 await this.scoreChecker(gamesHolder);
             }
             return 'done';
@@ -401,6 +421,94 @@ class SportsDataOperations extends DatabaseOperations {
                 clearInterval(intervalId);
             }
         }, 5000);
+    }
+
+    /**
+     * this method finds all wagers for the passed-in gameId and then locates the socket for each wager holder
+     * and then notifies their socket that the game is about to start
+     * 
+     * @param gameId - the game to find all wagers for
+     */
+    async notifyUsersAboutGameTime(gameIds: number[]) {
+        type WagerParticipants = {
+            bettor: string;
+            fader: string;
+            game_id: number;
+            game_begins?: Date;
+        };
+
+        let sqlParams: string = '';
+
+        for (let index = 1; index <= gameIds.length; index++) {
+            if (index != gameIds.length) {
+                sqlParams += `$${index},`;
+            } else {
+                sqlParams += `$${index}`;
+            }
+        }
+
+        // Get the game time for each game
+        //let gameTimeSql = `SELECT game_begins FROM games WHERE game_id IN (${sqlParams}) ORDER BY game_id ASC`;
+
+        // TODO: Work with this query to see if it's what you need instead of making multiple db hits for what can be
+        // retrieved in one.
+
+        let gameSQL = `
+            SELECT wagers.bettor, wagers.fader, wagers.game_id, games.game_begins
+            FROM wagers
+            INNER JOIN games
+            ON wagers.game_id = games.game_id
+            WHERE games.game_id IN (${sqlParams})`;
+
+        // find all users who bet one each game in the game id array
+        // const sql = 'SELECT bettor, fader, game_id FROM wagers WHERE game_id IN (' + sqlParams + ') ORDER BY game_id ASC';
+
+        let wagerParticipants: WagerParticipants[] = (await DatabaseOperations.dbConnection.query(gameSQL, gameIds)).rows;
+
+        // find the email for each wallet address
+        let emailArray = [];
+        for (const participants of wagerParticipants) {
+            let bettorEmail = await this.getEmailAddress(participants.bettor);
+            let faderEmail = await this.getEmailAddress(participants.fader);
+            emailArray.push({bettorEmail, faderEmail, gameTime: participants.game_begins?.toDateString() ?? "'no date found'"});
+        };
+
+        // now send out an email to each notifying them of their game starting
+        let promiseArray = [];
+        for (const emailObject of emailArray) {
+            let subject = `Your Game Is About To Start!`;
+            let text = `A game you bet on is about to start on ${emailObject.gameTime}. Get Ready!`;
+            promiseArray.push(
+                emailHelper.emailUser(emailObject.bettorEmail, subject, text),
+                emailHelper.emailUser(emailObject.faderEmail, subject, text),
+                );
+        }
+
+        // send out the emails
+        let emailsSentOut = await Promise.all(promiseArray);
+
+        // now find the socket that belongs to each address and notify them
+        // wagerParticipants.forEach(x => {
+        //     let bettorSocket: Socket = allSocketConnections[x.bettor];
+        //     bettorSocket.emit(
+        //         "game starting", 
+        //         {
+        //             message: "A game you bet on is about to start",
+        //             gameId: x.game_id
+        //         }
+        //     );
+
+        //     let faderSocket: Socket = allSocketConnections[x.fader];
+        //     faderSocket.emit(
+        //         "game starting",
+        //         {
+        //             gameUpdate: {
+        //                 message: "A game you bet on is about to start",
+        //                 gameId: x.game_id
+        //             }
+        //         }
+        //     );
+        // });
     }
 
     async getGameData(game: GameModel, intervalId: any) {
@@ -511,6 +619,7 @@ class WagerDataOperations extends DatabaseOperations {
         });
     }
 
+    /** This method will pay the winner their crypto from their respective escrow wallet */
     private async payWinner(winner: string, amount: number, wagerId: number) {
         // grab the private key from this wager's escrow wallet
         const escrowSql = `
@@ -532,7 +641,15 @@ class WagerDataOperations extends DatabaseOperations {
             // send crypto to winner's wallet
             await ltcOps.payoutFromEscrow(escrowWallet.address, rawPrivKey, winner, balanceAfterMyCut);
 
-            // send notification to the winner's socket connection
+            // send notification to the winner's socket connection and email address
+            let emailAddress = await this.getEmailAddress(winner);
+            await emailHelper.emailUser(
+                emailAddress, 
+                "You Won A Wager!", 
+                `Your payout in the amount of ${balanceAfterMyCut} LTC has began its transit to your wallet.
+                The amount being sent to you is the remaining balance AFTER network transaction fees (which we don't control) and paying the house (so that we can keep the lights on and provide this service).
+                We hope you come back and bet with us again soon.`
+            );
             io.to(allSocketConnections[winner].id).emit('payout started', {winner});
             wagerLogger.info(`payout started for address ${winner} in the amount of ${balanceAfterMyCut} LTC for wager ${wagerId}`);
         } catch (error) {

@@ -7,11 +7,22 @@ import { dbOps } from '../database_connection/DatabaseOperations.js';
 import { userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 import { LoginResponse } from '../models/dataModels.js';
+import { emailHelper } from '../EmailNotifications/EmailWorker.js';
 let router = express.Router();
 
 /* check your token */
 router.get('/check-token', authenticateJWT, function (req: Request, res: Response) {
   res.send({ message: 'Access Token Valid', status: 200 });
+});
+
+router.get('/test-emailer', async (req: Request, res: Response) => {
+  try {
+    let msgSent = await emailHelper.sendEmails();
+    res.status(200).json({msgSent});
+  } catch (err) {
+    console.error
+    res.status(500).json({msg: `${err}`});
+  }
 });
 
 /* Register a user */
@@ -93,7 +104,11 @@ router.post('/change-password', authenticateJWT, async (req: Request, res: Respo
   
             // swap the passwords out
             const passwordIsChanged = await dbOps.swapPasswords(passwordHashOnFile, newPasswordHash);
-  
+
+            // send an email to the user
+            let email = await dbOps.getUserEmail(username);
+            await emailHelper.emailUser(email, "Your Password Has Been Updated", "If you didn't initiate this contact us immediately.");
+
             res.status(200).json({message: "Password updated"});
           } else {
             res.status(403).json({message: 'That password was incorrect'});
@@ -117,7 +132,12 @@ router.post('/change-email', authenticateJWT, async (req: Request, res: Response
 
     if (passwordsMatch) {
       const emailUpdated = await dbOps.updateEmail(username, newEmail);
-      emailUpdated ? res.status(200).json({message: "Email updated."}) : res.status(500).json({message: "There was an error updating the email."})
+      if (emailUpdated) {
+        await emailHelper.emailUser(newEmail, "Your Email Address Has Been Updated", "If you didn't make this change contact us.");
+        res.status(200).json({message: "Email updated."});
+      } else {
+        res.status(500).json({message: "There was an error updating the email."});
+      }
     } else {
       res.status(403).json({message: "Wrong password for that account"});
     }

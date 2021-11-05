@@ -32,14 +32,13 @@ io.on("connection", (socket: Socket) => {
     if (allSocketConnections[walletAddr]) {
       delete allSocketConnections[walletAddr];
     }
-  })
+  });
 
   // keep track of the new connection, the key will be the user's wallet address
   allSocketConnections[socket.handshake.auth.walletAddress as string] = socket;
 
   // define a channel to listen to and communicate with clients on
   socket.on('NodeJS Server Port', (data: any) => {
-    console.log("data from the client: " + data);
     // send data back to the client
     io.emit('iOS Listeners', {message: "We are now communicating"});
   });

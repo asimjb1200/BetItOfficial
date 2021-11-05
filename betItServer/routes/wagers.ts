@@ -6,6 +6,7 @@ import { WagerModel } from '../models/dbModels/dbModels.js';
 let router = express.Router();
 import {io} from '../bin/www.js'
 import { WagerStatus } from '../models/dataModels.js';
+import { emailHelper } from '../EmailNotifications/EmailWorker.js';
 
 router.post('/get-wagers-by-game', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty("gameId") && typeof req.body.gameId == 'number') {
@@ -57,6 +58,19 @@ router.post('/add-fader-to-wager', async (req: Request, res: Response) => {
 
             // Send the crypto from each user's wallet to the escrow address
             let escrowFunded = await ltcOps.fundEscrowForWager(updatedWager.bettor, faderAddr, updatedWager.id);
+
+            // find the email address that belongs to each wallet address
+            let emailAddresses: string[] = [];
+            for (const address of [updatedWager.bettor, faderAddr]) {
+                let email = await dbOps.getEmailAddress(address);
+                emailAddresses.push(email);
+            }
+
+            // email each user about the cypto being taken from their wallets
+            await Promise.all([
+                emailHelper.emailUser(emailAddresses[0], "Crypto Being Moved To Escrow", `Your wager is now active. ${updatedWager.wager_amount} LTC has started its transit to escrow from your wallet in preparation for the game.`),
+                emailHelper.emailUser(emailAddresses[1], "Crypto Being Moved To Escrow", `Your wager is now active. ${updatedWager.wager_amount} LTC has started its transit to escrow from your wallet in preparation for the game.`)
+            ]);
 
             // emit the updated wager to the app so that everyone will update their views
             io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
