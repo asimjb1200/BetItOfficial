@@ -47,7 +47,7 @@ export async function refreshOldToken(oldToken: string): Promise<string | number
         if (!refresh_token) {
             return 403
         }
-        const user: any = await jwt.verify(oldToken, process.env.REFRESHTOKENSECRET!);
+        const user: any = jwt.verify(oldToken, process.env.REFRESHTOKENSECRET!);
         const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET!, { expiresIn: '30m' });
         try {
             // save the user's new access token to the db

@@ -6,6 +6,7 @@ import { stderr, stdout } from 'process';
 import { BallDontLieData } from '../models/dataModels.js';
 import { GameModel } from '../models/dbModels/dbModels.js';
 import { mainLogger } from '../loggerSetup/logSetup.js';
+import { allSocketConnections, io } from '../bin/www.js';
 let router = express.Router();
 
 /* BASKETBALL */
@@ -40,6 +41,21 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
             return element;
         }
     });
+
+    // io.to(allSocketConnections["LWc5wn1soefJ65i7Q9gxbBWLWSmNBWjcgc"].id).emit("game starting", {
+    //     gameUpdate: {
+    //         message: "A game you bet on is about to start",
+    //         gameId: 45
+    //     }
+    // });
+    // allSocketConnections["LWc5wn1soefJ65i7Q9gxbBWLWSmNBWjcgc"].emit("game starting",
+    //     {
+    //         gameUpdate: {
+    //             message: "A game you bet on is about to start",
+    //             gameId: 45
+    //         }
+    //     }
+    // );
     
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
