@@ -452,7 +452,6 @@ class SportsDataOperations extends DatabaseOperations {
 
         // TODO: Work with this query to see if it's what you need instead of making multiple db hits for what can be
         // retrieved in one.
-
         let gameSQL = `
             SELECT wagers.bettor, wagers.fader, wagers.game_id, games.game_begins
             FROM wagers
@@ -481,34 +480,36 @@ class SportsDataOperations extends DatabaseOperations {
             promiseArray.push(
                 emailHelper.emailUser(emailObject.bettorEmail, subject, text),
                 emailHelper.emailUser(emailObject.faderEmail, subject, text),
-                );
+            );
         }
 
         // send out the emails
         let emailsSentOut = await Promise.all(promiseArray);
 
         // now find the socket that belongs to each address and notify them
-        // wagerParticipants.forEach(x => {
-        //     let bettorSocket: Socket = allSocketConnections[x.bettor];
-        //     bettorSocket.emit(
-        //         "game starting", 
-        //         {
-        //             message: "A game you bet on is about to start",
-        //             gameId: x.game_id
-        //         }
-        //     );
+        wagerParticipants.forEach(x => {
+            let bettorSocket: Socket = allSocketConnections[x.bettor];
+            bettorSocket.emit(
+                "game starting", 
+                {
+                    gameUpdate: {
+                        message: "A game you bet on is about to start",
+                        gameId: x.game_id
+                    }
+                }
+            );
 
-        //     let faderSocket: Socket = allSocketConnections[x.fader];
-        //     faderSocket.emit(
-        //         "game starting",
-        //         {
-        //             gameUpdate: {
-        //                 message: "A game you bet on is about to start",
-        //                 gameId: x.game_id
-        //             }
-        //         }
-        //     );
-        // });
+            let faderSocket: Socket = allSocketConnections[x.fader];
+            faderSocket.emit(
+                "game starting",
+                {
+                    gameUpdate: {
+                        message: "A game you bet on is about to start",
+                        gameId: x.game_id
+                    }
+                }
+            );
+        });
     }
 
     async getGameData(game: GameModel, intervalId: any) {
@@ -650,7 +651,7 @@ class WagerDataOperations extends DatabaseOperations {
                 The amount being sent to you is the remaining balance AFTER network transaction fees (which we don't control) and paying the house (so that we can keep the lights on and provide this service).
                 We hope you come back and bet with us again soon.`
             );
-            io.to(allSocketConnections[winner].id).emit('payout started', {winner});
+            io.to(allSocketConnections[winner].id).emit('payout started', "You won a bet! The crypto is on its way to your wallet.");
             wagerLogger.info(`payout started for address ${winner} in the amount of ${balanceAfterMyCut} LTC for wager ${wagerId}`);
         } catch (error) {
             wagerLogger.error(`An error occurred during the payout function: ${error}`);

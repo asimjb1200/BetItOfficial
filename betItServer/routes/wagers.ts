@@ -4,7 +4,7 @@ import { userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
 import { dbOps, ltcOps, sportOps, wagerOps } from '../database_connection/DatabaseOperations.js';
 import { WagerModel } from '../models/dbModels/dbModels.js';
 let router = express.Router();
-import {io} from '../bin/www.js'
+import {allSocketConnections, io} from '../bin/www.js'
 import { WagerStatus } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
 
@@ -129,6 +129,8 @@ router.post('/delete-wager', async (req: Request, res: Response) => {
     if (req.body.hasOwnProperty('wagerId') && typeof req.body.wagerId == 'number') {
         try {
             await wagerOps.deleteWager(req.body.wagerId);
+            // TODO: email the user and send a message to their socket informing them of the deletion
+            // io.to(allSocketConnections[])
             res.status(200).send('OK');
         } catch(err) {
             console.log(err)
