@@ -29,6 +29,17 @@ router.post('/create-ltc-addr', async (req: Request, res: Response) => {
     }
 });
 
+/** handle any timestamps that come in with milliseconds.
+ * the client app can only hand 2 digit seconds in the time stamp, so this will remove any excess digits.
+ * @returns iso8601 format "yyyy-MM-dd'T'HH:MM:ssZ"
+ */
+function chopUpDate(date: string): string {
+    date = date.replace(".", "Z");
+    let cutOffHere = date.indexOf("Z") + 1;
+    let correctDateString = date.substring(0, cutOffHere);
+    return correctDateString;
+}
+
 router.get('/wallet-history/:walletAddress', async (req: Request, res: Response) => {
     if (req.params.walletAddress && typeof req.params.walletAddress == 'string') {
         try {
@@ -43,9 +54,8 @@ router.get('/wallet-history/:walletAddress', async (req: Request, res: Response)
                 SHOW UP INCORRECTLY IN THE CLIENT OBJECTS. TRY TO FIX LATER
             */
     
-    
             // now construct the objects to send back to the client
-            const clientObjects: WalletTxPreview[] = walletTxs.map(x => {
+            const clientObjects: WalletTxPreview[] = walletTxs.map((x: BlockCypherTx) => {
                 if (x.addresses.length > 2) {
                     let ltcAmountSent = 0;
                     x.outputs.forEach(y => {
@@ -53,28 +63,49 @@ router.get('/wallet-history/:walletAddress', async (req: Request, res: Response)
                             ltcAmountSent += y.value;
                         }
                     });
-    
-                    return {
-                        date: x.received, 
-                        ltcAmount: (ltcAmountSent/10e7), 
-                        received: true, 
-                        fromAddress: "coinbase",
-                        fees: (x.fees/10e7),
-                        toAddress: x.addresses[0]
-                    } as WalletTxPreview;
-                } else {
                     
-                    return {
-                        date: x.received, 
-                        ltcAmount: (x.total/10e7), 
-                        received: (x.addresses[0] == req.params.walletAddress ? false : true), 
-                        fromAddress: x.addresses[0],
-                        fees: (x.fees/10e7),
-                        toAddress: x.addresses[1]
-                    } as WalletTxPreview;
+                    if (x.received.length > 20) {
+                        return {
+                            date: chopUpDate(x.received), 
+                            ltcAmount: (ltcAmountSent/10e7), 
+                            received: true, 
+                            fromAddress: "coinbase",
+                            fees: (x.fees/10e7),
+                            toAddress: x.addresses[0]
+                        } as WalletTxPreview;
+                    } else {
+                        return {
+                            date: x.received, 
+                            ltcAmount: (ltcAmountSent/10e7), 
+                            received: true, 
+                            fromAddress: "coinbase",
+                            fees: (x.fees/10e7),
+                            toAddress: x.addresses[0]
+                        } as WalletTxPreview;
+                    }
+                } else {
+                    if (x.received.length > 20) {
+                        return {
+                            date: chopUpDate(x.received), 
+                            ltcAmount: (x.total/10e7), 
+                            received: (x.addresses[0] == req.params.walletAddress ? false : true), 
+                            fromAddress: x.addresses[0],
+                            fees: (x.fees/10e7),
+                            toAddress: x.addresses[1]
+                        } as WalletTxPreview;
+                    } else {
+                        return {
+                            date: x.received, 
+                            ltcAmount: (x.total/10e7), 
+                            received: (x.addresses[0] == req.params.walletAddress ? false : true), 
+                            fromAddress: x.addresses[0],
+                            fees: (x.fees/10e7),
+                            toAddress: x.addresses[1]
+                        } as WalletTxPreview;
+                    }
                 }
             });
-    
+
             res.status(200).json(clientObjects);
         } catch (err) {
             if (axios.isAxiosError(err)) {

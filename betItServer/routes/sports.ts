@@ -35,17 +35,20 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
 
     let games: GameModel[] = await sportOps.getGamesByDate(date);
 
-    // filter out games that will be played within the next 30 minutes
-    let filteredGames: (GameModel | undefined)[] = games.map(element => {
-        if (sportOps.gameIsMoreThan30MinsOut(element)) {
-            return element;
+    // // filter out games that will be played within the next 30 minutes
+    let filteredGames: GameModel[] = games.filter((x: GameModel) => {
+        if (sportOps.gameIsMoreThan30MinsOut(x)) {
+            return x;
         }
     });
     
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
+    } else if (!filteredGames.length) {
+        console.log("filtered games was empty");
+        res.status(200).json(filteredGames);
     } else {
-        res.status(404).send("No games today");
+        res.status(200).json([]);
     }
 });
 

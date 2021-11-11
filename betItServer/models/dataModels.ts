@@ -182,7 +182,7 @@ export type BlockCypherTx = {
     vsize: number;
     preference: string;
     relayed_by: any;
-    received: Date;
+    received: string;
     ver: number;
     double_spend: boolean;
     vin_sz: number;
@@ -286,7 +286,7 @@ export type WagerStatus = {
 }
 
 export type WalletTxPreview = {
-    date: Date,
+    date: string,
     ltcAmount: number,
     received: boolean,
     fromAddress: string,
