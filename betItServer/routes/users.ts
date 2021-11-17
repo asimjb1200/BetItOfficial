@@ -67,22 +67,24 @@ router.post('/refresh-token', async (req: Request, res: Response) => {
   const { token } = req.body;
   const result = await refreshOldToken(token);
   if (typeof result === 'string') {
-    res.json({
-      result
-    });
+    res.json(result);
   } else {
-    res.sendStatus(result)
+    res.status(result).send("your refresh token has expired. Login again")
   }
 });
 
-router.post('/logout', async (req: Request, res: Response) => {
-  const { token } = req.body;
-    // delete the user's refresh token and access token from the database
-    let loggedOut = await dbOps.logout(token);
-    if (loggedOut) {
-      res.status(200).send("User logged out");
+router.post('/logout', authenticateJWT, async (req: Request, res: Response) => {
+    // delete the user's refresh token from the database
+    if (req.user?.username) {
+      let loggedOut = await dbOps.logout(req.user.username);
+      if (loggedOut) {
+        res.status(200).send("User logged out");
+      } else {
+        res.status(404).send('Attempted token not found')
+      }
     } else {
-      res.status(404).send('Attempted token not found')
+      userLogger.info("A user wasn't attached to the request object when trying to logout.");
+      res.status(500).send("An error on the server occurred.")
     }
 });
 

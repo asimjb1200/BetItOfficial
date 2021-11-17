@@ -42,7 +42,7 @@ class DatabaseOperations {
             const isMatch = await bcrypt.compare(password, user.rows[0].password);
             if (isMatch) {
                 try {
-                    // generate and save tokens to the db
+                    // generate and save refresh token to the db
                     const tokens: UserTokens = await this.insertTokensForUser(username);
                     const verifiedUser: JWTUser = (await jwt.verify(tokens.accessToken, process.env.ACCESSTOKENSECRET!))as JWTUser;
 
@@ -71,19 +71,18 @@ class DatabaseOperations {
         }
     }
 
-    async logout(token: string) {
-        const deleteQuery = 'UPDATE users SET access_token=null, refresh_token=null WHERE access_token=$1';
-        const deleteQueryValues = [token];
-
+    async logout(username: string) {
+        const deleteQuery = 'UPDATE users SET refresh_token=null WHERE username=$1';
+        const deleteQueryValues = [username];
         try {
             let logoutInfo = await DatabaseOperations.dbConnection.query(deleteQuery, deleteQueryValues);
             if (logoutInfo.rowCount == 1) {
-                return true
+                return true;
             } else {
-                userLogger.error(`token not found during logout: ${token}`);
-                return false
+                return false;
             }
-        } catch (error) {
+        } catch (err) {
+            userLogger.error(`Problem occurred when logging user ${username} out: ${err}`);
             return false
         }
     }
@@ -126,25 +125,17 @@ class DatabaseOperations {
 
     }
 
-    async updateAccessToken(newAccessToken: string, oldToken: string) {
-        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1 WHERE refresh_token=$2';
-        const insertAccessTokenQueryValues = [newAccessToken, oldToken];
-        await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
-    }
-
-    async insertNewTokens(accessToken: string, refreshToken: string, username: string) {
-        const insertNewTokensQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
-        const insertNewTokensQueryValues = [accessToken, refreshToken, username];
-        await DatabaseOperations.dbConnection.query(insertNewTokensQuery, insertNewTokensQueryValues);
-    }
-
+    /**
+     * this method generates the access and refresh tokens for the user
+     *  and then inserts the user's refresh token into the database
+     * @param username
+     * @returns the newly created access and refresh token strings
+     */
     async insertTokensForUser(username: string): Promise<UserTokens> {
         const { accessToken, refreshToken } = tokenHandler.generateTokens(username);
-        // now save the access and refresh tokens to the user's data base
-        const insertAccessTokenQuery = 'UPDATE users SET access_token=$1, refresh_token=$2 WHERE username=$3';
-        const insertAccessTokenQueryValues = [accessToken, refreshToken, username];
-
-        let updateMe = await DatabaseOperations.dbConnection.query(insertAccessTokenQuery, insertAccessTokenQueryValues);
+        const insertRefreshTokenQuery = 'UPDATE users SET refresh_token=$1 WHERE username=$2';
+        const insertAccessTokenQueryValues = [refreshToken, username];
+        let updateMe = await DatabaseOperations.dbConnection.query(insertRefreshTokenQuery, insertAccessTokenQueryValues);
 
         return { accessToken, refreshToken };
     }
@@ -156,7 +147,7 @@ class DatabaseOperations {
     async findRefreshToken(refreshToken: string): Promise<string | undefined> {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
-        return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0];
+        return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0].refresh_token;
     }
 
     /** Find an email address via a wallet address */

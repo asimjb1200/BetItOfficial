@@ -2,9 +2,9 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { dbOps } from '../database_connection/DatabaseOperations.js';
-import { UserTokens } from '../models/dataModels.js';
+import { JWTUser, UserTokens } from '../models/dataModels.js';
 
-export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
+export function authenticateJWT(req: Request, res: Response, next: NextFunction){
 
     if (req.headers.authorization) {
         // grab the authorization header
@@ -19,7 +19,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
                 return res.sendStatus(403);
             }
             // if the token is valid, attach the user and continue the request
-            req.user = user;
+            req.user = user as JWTUser;
             next();
         });
     } else {
@@ -32,32 +32,33 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
 export function generateTokens(username: string): UserTokens {
     // Generate an access & refresh token
     const accessToken: string = jwt.sign({ username: username }, process.env.ACCESSTOKENSECRET!, { expiresIn: "1h" });
-    const refreshToken: string = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET!, { expiresIn: "2h" });
+    const refreshToken: string = jwt.sign({ username: username }, process.env.REFRESHTOKENSECRET!, { expiresIn: "7h" });
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken };
 }
 
+/** This function takes in the user's refresh token, verifies it and then issues a new access token to them */
 export async function refreshOldToken(oldToken: string): Promise<string | number> {
     if (!oldToken) {
         return 401;
     }
     try {
-        // find the user's refresh token in the database
+        // find the user's refresh token in the database to make sure it is a VALID one
         const refresh_token = await dbOps.findRefreshToken(oldToken);
         if (!refresh_token) {
             return 403
         }
+        
+        // keep it this way, if their refresh token has expired they'll just have to login again and create a new one
         const user: any = jwt.verify(oldToken, process.env.REFRESHTOKENSECRET!);
-        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET!, { expiresIn: '30m' });
+        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET!, { expiresIn: '1h' });
         try {
-            // save the user's new access token to the db
-            await dbOps.updateAccessToken(newAccessToken, oldToken);
             return newAccessToken
         } catch (err) {
             tokenLogger.error(`Problem updating access token for ${user.username}: ` + err);
             return 500
         }
     } catch (dbError) {
-        return 500
+        return 401 // this could arise if the token is no longer valid, in the case the user needs to login again
     }
 }
