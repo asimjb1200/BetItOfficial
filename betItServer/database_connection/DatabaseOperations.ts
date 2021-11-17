@@ -339,6 +339,8 @@ class SportsDataOperations extends DatabaseOperations {
 
                 await this.notifyUsersAboutGameTime(gameIds);
 
+                await wagerOps.checkIfWagerForGameNotTaken(gameIds);
+
                 await this.scoreChecker(gamesHolder);
             }
             return 'done';
@@ -517,6 +519,81 @@ class WagerDataOperations extends DatabaseOperations {
 
     constructor() {
         super();
+    }
+
+    /**This method will check for wagers whose game has started and no one has taken the wager. When found, the inactive wagers will be deleted*/
+    async checkIfWagerForGameNotTaken(gameIds: number[]) {
+        type ShortWagerData = {
+            id: number,
+            bettor: string,
+            fader?: string
+        };
+
+        let sqlParams: string = '';
+
+        for (let index = 1; index <= gameIds.length; index++) {
+            if (index != gameIds.length) {
+                sqlParams += `$${index},`;
+            } else {
+                sqlParams += `$${index}`;
+            }
+        }
+        const sql = `
+            SELECT id, bettor, fader
+            FROM wagers
+            WHERE game_id
+            IN (${sqlParams})
+        `;
+
+        let wagerDataArray: ShortWagerData[] = (await DatabaseOperations.dbConnection.query(sql, [gameIds])).rows;
+        let wagersToDelete: ShortWagerData[] = [];
+        
+        wagerDataArray.forEach((wagerData: ShortWagerData) => {
+            if (!wagerData.fader) {
+                wagersToDelete.push(wagerData);
+            }
+        });
+
+        if (wagersToDelete.length) {
+            // delete all the wagers with no fader and free up db space
+            let deleteParams = "";
+            for (let index = 1; index <= wagersToDelete.length; index++) {
+                if (index != wagersToDelete.length) {
+                    deleteParams += `$${index},`;
+                } else {
+                    deleteParams += `$${index}`;
+                }
+            }
+
+            const deleteSql = `
+                DELETE FROM wagers
+                WHERE game_id IN (${deleteParams})
+            `;
+            const wagerIdsToDelete: number[] = wagersToDelete.map(x => x.id);
+            const numWagersDeleted = (await DatabaseOperations.dbConnection.query(deleteSql, [wagerIdsToDelete])).rows;
+            if (numWagersDeleted.length) {
+                wagerLogger.info(`${numWagersDeleted.length} wagers deleted today due to not having a fader.`);
+
+                let emailArray = [];
+                //send an email to the user that their wager was deleted due to no one taking it.
+                for (let index = 0; index < wagersToDelete.length; index++) {
+                    const element = wagersToDelete[index];
+                    let subject = "Your Wager Was Not Taken"
+                    let msg = `
+                        No one took your wager and the game you wanted to bet on has started or will be starting soon. 
+                        As a result, your wager has been deleted. The crypto you wanted to wager on this game has not been moved from your wallet.
+                    `;
+                    let emailAddress = await this.getEmailAddress(element.bettor);
+
+                    emailArray.push(emailHelper.emailUser(emailAddress, subject, msg));
+                }
+
+                // now send them bitches out
+                const emailsSentOut = await Promise.all(emailArray);
+            }
+        } else {
+            wagerLogger.info("No inactive wagers on any games today.");
+        }
     }
 
     async cancelWager() {
