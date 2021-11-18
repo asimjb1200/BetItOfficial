@@ -523,6 +523,7 @@ class WagerDataOperations extends DatabaseOperations {
 
     /**This method will check for wagers whose game has started and no one has taken the wager. When found, the inactive wagers will be deleted*/
     async checkIfWagerForGameNotTaken(gameIds: number[]) {
+        //TODO: make sure none of my other functions are locking people's crypto. I believe that it is locked based on what's in the db so they should be okay. but still double check
         type ShortWagerData = {
             id: number,
             bettor: string,
