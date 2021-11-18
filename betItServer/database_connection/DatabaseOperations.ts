@@ -481,27 +481,31 @@ class SportsDataOperations extends DatabaseOperations {
 
         // now find the socket that belongs to each address and notify them
         wagerParticipants.forEach(x => {
-            let bettorSocket: Socket = allSocketConnections[x.bettor];
-            bettorSocket.emit(
-                "game starting", 
-                {
-                    gameUpdate: {
-                        message: "A game you bet on is about to start",
-                        gameId: x.game_id
+            if (allSocketConnections[x.bettor]) {
+                let bettorSocket: Socket = allSocketConnections[x.bettor];
+                bettorSocket.emit(
+                    "game starting", 
+                    {
+                        gameUpdate: {
+                            message: "A game you bet on is about to start",
+                            gameId: x.game_id
+                        }
                     }
-                }
-            );
+                );
+            }
 
-            let faderSocket: Socket = allSocketConnections[x.fader];
-            faderSocket.emit(
-                "game starting",
-                {
-                    gameUpdate: {
-                        message: "A game you bet on is about to start",
-                        gameId: x.game_id
+            if (allSocketConnections[x.fader]) {
+                let faderSocket: Socket = allSocketConnections[x.fader];
+                faderSocket.emit(
+                    "game starting",
+                    {
+                        gameUpdate: {
+                            message: "A game you bet on is about to start",
+                            gameId: x.game_id
+                        }
                     }
-                }
-            );
+                );
+            }
         });
     }
 
@@ -720,7 +724,10 @@ class WagerDataOperations extends DatabaseOperations {
                 The amount being sent to you is the remaining balance AFTER network transaction fees (which we don't control) and paying the house (so that we can keep the lights on and provide this service).
                 We hope you come back and bet with us again soon.`
             );
-            io.to(allSocketConnections[winner].id).emit('payout started', "You won a bet! The crypto is on its way to your wallet.");
+            if (allSocketConnections[winner]) {
+                io.to(allSocketConnections[winner].id).emit('payout started', "You won a bet! The crypto is on its way to your wallet.");
+            }
+            
             wagerLogger.info(`payout started for address ${winner} in the amount of ${balanceAfterMyCut} LTC for wager ${wagerId}`);
         } catch (error) {
             wagerLogger.error(`An error occurred during the payout function: ${error}`);
@@ -787,6 +794,7 @@ class LitecoinOperations extends DatabaseOperations {
         return this.ltcInstance || (this.ltcInstance = new this());
     }
 
+    /** This function will move each user's crypto to the escrow wallet for the wager. */
     async fundEscrowForWager(bettor: string, fader: string, wagerId: number) {
         // grab the wager from the db
         const wagerSql = `
@@ -813,28 +821,45 @@ class LitecoinOperations extends DatabaseOperations {
         const escrowWalletFunded: string[] = await Promise.all(promiseArray);
 
         if (escrowWalletFunded[0] == "txs began" && escrowWalletFunded[1] == "txs began") {
-            // send notification to the users that the crypto is being taken from their wallets
-            io
-            .to(allSocketConnections[bettor].id)
-            .emit(
-                'wallet txs', 
-                {
-                    msg: `Tx Started`, 
-                    details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
-                    escrowWallet: `${escrowAddr}`
-                }
-            );
+            // send notification to the users that the crypto is being taken from their wallets & email them
+            if (allSocketConnections[bettor]) {
+                io
+                .to(allSocketConnections[bettor].id)
+                .emit(
+                    'wallet txs', 
+                    {
+                        msg: `Tx Started`, 
+                        details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
+                        escrowWallet: `${escrowAddr}`
+                    }
+                );
+            }
 
-            io
-            .to(allSocketConnections[fader].id)
-            .emit(
-                'wallet txs', 
-                {
-                    msg: `Tx Started`, 
-                    details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
-                    escrowWallet: `${escrowAddr}`
-                }
-            );
+            if (allSocketConnections[fader]) {
+                io
+                .to(allSocketConnections[fader].id)
+                .emit(
+                    'wallet txs', 
+                    {
+                        msg: `Tx Started`,
+                        details: `${wager.wager_amount} LTC sent to escrow for the wager`, 
+                        escrowWallet: `${escrowAddr}`
+                    }
+                );
+            }
+
+            const bettorEmail = await this.getEmailAddress(bettor);
+            const faderEmail = await this.getEmailAddress(fader);
+
+            const subject = "Crypto Has Moved To Escrow";
+            const msg = "Your wager is now active and your crypto is on it's way to the escrow wallet.";
+            let promiseArray = [
+                emailHelper.emailUser(bettorEmail, subject, msg),
+                emailHelper.emailUser(faderEmail, subject, msg)
+            ];
+
+            let emailsSentOut = await Promise.all(promiseArray);
+
             return true;
         } else {
             return false;
