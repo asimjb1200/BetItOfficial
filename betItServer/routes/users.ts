@@ -8,6 +8,7 @@ import { userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 import { LoginResponse } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
+import axios from 'axios';
 let router = express.Router();
 
 /* check your token */
@@ -33,6 +34,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     if (isEmail.validate(email)) {
       if (typeof username == 'string' && typeof password == 'string') {
         const hash = await bcrypt.hash(password, saltRounds);
+        console.log(`${email} ${password} ${hash}`);
         // now post the user to the database
         await dbOps.insertNewUser(username, hash, email);
         return res.sendStatus(201);
