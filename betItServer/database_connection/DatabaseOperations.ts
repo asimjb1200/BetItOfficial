@@ -869,14 +869,11 @@ class LitecoinOperations extends DatabaseOperations {
     async createAddr(escrow: Boolean, username?: string) {
         if (!escrow && username) {
             let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
-            const addrData = addrResponse.data
+            const addrData = addrResponse.data;
             // encrypt priv key first
             addrData.private = encrypt(addrData.private);
-            
-            // update that users wallet attribute
-            // await this.updateUserLtcAddr(username, addrData.address, encryptedPrivKey)
 
-            return addrData
+            return addrData;
         } else {
             let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
             let addrData = addrResponse.data;
@@ -962,7 +959,7 @@ class LitecoinOperations extends DatabaseOperations {
 
         let newtx = {
             inputs: [{ addresses: [sendingAddr] }],
-            outputs: [{ addresses: [process.env.MASTERWALLERADDRESS as string], value: amountInLitoshis }]
+            outputs: [{ addresses: [process.env.MASTERWALLETADDRESS as string], value: amountInLitoshis }]
         };
 
         try {

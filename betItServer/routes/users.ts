@@ -3,11 +3,12 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import isEmail from 'email-validator';
 const saltRounds = 10;
-import { dbOps } from '../database_connection/DatabaseOperations.js';
+import { dbOps, sportOps } from '../database_connection/DatabaseOperations.js';
 import { userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 import { LoginResponse } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
+import axios from 'axios';
 let router = express.Router();
 
 /* check your token */
@@ -33,6 +34,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     if (isEmail.validate(email)) {
       if (typeof username == 'string' && typeof password == 'string') {
         const hash = await bcrypt.hash(password, saltRounds);
+        console.log(`${email} ${password} ${hash}`);
         // now post the user to the database
         await dbOps.insertNewUser(username, hash, email);
         return res.sendStatus(201);
@@ -123,6 +125,15 @@ router.post('/change-password', authenticateJWT, async (req: Request, res: Respo
         res.status(400);
       }
 });
+
+// router.get('/load-db', async (req: Request, res: Response) => {
+//   const gamesLoaded = await sportOps.insertAllGamesForSeason();
+//    if (gamesLoaded == "Done") {
+//      return res.status(200).json("games loaded");
+//    } else {
+//      return res.status(500).json("an error occurred");
+//    }
+// });
 
 router.post('/change-email', authenticateJWT, async (req: Request, res: Response) => {
   const {username, password, newEmail} = req.body;

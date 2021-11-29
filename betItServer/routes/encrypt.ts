@@ -7,7 +7,7 @@ const secretKey: string = process.env.ENCRYPTIONSECRETKEY as string;
  */
 const encrypt = (text: string) => {
   let sha256 = crypto.createHash('sha256');
-  sha256.update(String.prototype.normalize(secretKey)); // this ensures the key is ALWAYS 256 bits
+  sha256.update(secretKey.normalize()); // this ensures the key is ALWAYS 256 bits
   
   // Initialization Vector
   let iv = crypto.randomBytes(16); // randomization to ensure no to crypted strings are the same
@@ -23,7 +23,7 @@ const encrypt = (text: string) => {
 const decrypt = (encrypted: string) => {
   let text = Buffer.from(encrypted, 'base64'); // turn the text string back into binary data
   let sha256 = crypto.createHash('sha256');
-  sha256.update(String.prototype.normalize(secretKey)); 
+  sha256.update(secretKey.normalize()); 
   // Initialization Vector
   const iv = text.slice(0, 16);
   let decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, sha256.digest(), iv);
