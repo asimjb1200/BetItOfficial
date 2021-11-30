@@ -6,6 +6,7 @@
     "build": "tsc --project ./",
     "start": "node ./build/bin/www",
     "start:dev": "nodemon -r ./bin/www",
+    "start:prod": "npm run build && npm run start",
     "tsc": "tsc",
     "tsStart": "node ./build/bin/www"
   },
