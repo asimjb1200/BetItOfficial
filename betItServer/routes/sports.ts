@@ -41,16 +41,14 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     //     }
     // });
 
-    let filteredGames: GameModel[] = games;
-
-    console.log(filteredGames);
+    console.log(games);
 
     
-    if (filteredGames != null && filteredGames.length > 0) {
-        res.status(200).json(filteredGames);
-    } else if (!filteredGames.length) {
+    if (games != null && games.length > 0) {
+        res.status(200).json(games);
+    } else if (!games.length) {
         console.log("filtered games was empty");
-        res.status(200).json(filteredGames);
+        res.status(200).json(games);
     } else {
         res.status(200).json([]);
     }

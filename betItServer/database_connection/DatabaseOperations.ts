@@ -260,7 +260,7 @@ class SportsDataOperations extends DatabaseOperations {
             const sql = `
                 SELECT *
                 FROM games
-                WHERE date_trunc('day', game_begins)='$1'
+                WHERE date_trunc('day', game_begins)=$1
             `;
 
             const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
