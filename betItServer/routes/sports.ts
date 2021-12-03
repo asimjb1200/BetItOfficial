@@ -40,9 +40,6 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     //         return x;
     //     }
     // });
-
-    console.log(games);
-
     
     if (games != null && games.length > 0) {
         res.status(200).json(games);

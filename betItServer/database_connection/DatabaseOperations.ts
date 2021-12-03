@@ -257,10 +257,16 @@ class SportsDataOperations extends DatabaseOperations {
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
         try {
+            // const sql = `
+            //     SELECT *
+            //     FROM games
+            //     WHERE date_trunc('day', game_begins)=$1
+            // `;
+
             const sql = `
-                SELECT *
-                FROM games
-                WHERE date_trunc('day', game_begins)=$1
+                SELECT * 
+                FROM games 
+                WHERE CAST((game_begins AT TIME ZONE 'CST') AS date) = DATE $1
             `;
 
             const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
