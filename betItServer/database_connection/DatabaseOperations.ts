@@ -264,13 +264,12 @@ class SportsDataOperations extends DatabaseOperations {
             // `;
 
             const sql = `
-                SELECT * 
-                FROM games 
-                WHERE CAST((game_begins AT TIME ZONE 'CST') AS date) = DATE $1
+            select * from games WHERE CAST((game_begins AT TIME ZONE 'CST') AS date) = DATE '2021-12-03'
             `;
 
-            const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
-            return games
+            const games = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate]));
+            console.log(games);
+            return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
             return [];
