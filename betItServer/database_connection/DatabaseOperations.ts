@@ -251,10 +251,12 @@ class SportsDataOperations extends DatabaseOperations {
     }
 
     async getGamesByDate(date: Date = new Date()) {
+        
         const month = date.getMonth() + 1
         const day = date.getDate()
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
+        console.log(queryThisDate);
         try {
             const sql = `
                 SELECT *
