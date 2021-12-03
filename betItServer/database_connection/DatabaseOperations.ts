@@ -256,12 +256,11 @@ class SportsDataOperations extends DatabaseOperations {
         const day = date.getDate()
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
-        console.log(queryThisDate);
         try {
             const sql = `
                 SELECT *
                 FROM games
-                WHERE date_trunc('day', game_begins)=$1
+                WHERE date_trunc('day', game_begins)='$1'
             `;
 
             const games: GameModel[] = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate])).rows
