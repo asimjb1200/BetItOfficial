@@ -483,9 +483,8 @@ class SportsDataOperations extends DatabaseOperations {
 
         // now find the socket that belongs to each address and notify them
         wagerParticipants.forEach(x => {
-            if (allSocketConnections[x.bettor]) {
-                let bettorSocket: Socket = allSocketConnections[x.bettor];
-                bettorSocket.emit(
+            if (allSocketConnections.hasOwnProperty(x.bettor)) {
+                allSocketConnections[x.bettor].emit(
                     "game starting", 
                     {
                         gameUpdate: {
@@ -496,9 +495,8 @@ class SportsDataOperations extends DatabaseOperations {
                 );
             }
 
-            if (allSocketConnections[x.fader]) {
-                let faderSocket: Socket = allSocketConnections[x.fader];
-                faderSocket.emit(
+            if (allSocketConnections.hasOwnProperty(x.fader)) {
+                allSocketConnections[x.fader].emit(
                     "game starting",
                     {
                         gameUpdate: {
@@ -726,8 +724,8 @@ class WagerDataOperations extends DatabaseOperations {
                 The amount being sent to you is the remaining balance AFTER network transaction fees (which we don't control) and paying the house (so that we can keep the lights on and provide this service).
                 We hope you come back and bet with us again soon.`
             );
-            if (allSocketConnections[winner]) {
-                io.to(allSocketConnections[winner].id).emit('payout started', "You won a bet! The crypto is on its way to your wallet.");
+            if (allSocketConnections.hasOwnProperty(winner)) {
+                allSocketConnections[winner].emit('payout started', "You won a bet! The crypto is on its way to your wallet.");
             }
             
             wagerLogger.info(`payout started for address ${winner} in the amount of ${balanceAfterMyCut} LTC for wager ${wagerId}`);
@@ -824,10 +822,8 @@ class LitecoinOperations extends DatabaseOperations {
 
         if (escrowWalletFunded[0] == "txs began" && escrowWalletFunded[1] == "txs began") {
             // send notification to the users that the crypto is being taken from their wallets & email them
-            if (allSocketConnections[bettor]) {
-                io
-                .to(allSocketConnections[bettor].id)
-                .emit(
+            if (allSocketConnections.hasOwnProperty(bettor)) {
+                allSocketConnections[bettor].emit(
                     'wallet txs', 
                     {
                         msg: `Tx Started`, 
@@ -837,10 +833,8 @@ class LitecoinOperations extends DatabaseOperations {
                 );
             }
 
-            if (allSocketConnections[fader]) {
-                io
-                .to(allSocketConnections[fader].id)
-                .emit(
+            if (allSocketConnections.hasOwnProperty(fader)) {
+                allSocketConnections[fader].emit(
                     'wallet txs', 
                     {
                         msg: `Tx Started`,
