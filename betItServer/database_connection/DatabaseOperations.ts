@@ -250,25 +250,20 @@ class SportsDataOperations extends DatabaseOperations {
         return gameTimeResponse.game_begins;
     }
 
-    async getGamesByDate(date: Date = new Date()) {
-        
+    async getGamesByDate(date: Date = new Date(), timezone: string = 'EST') {
         const month = date.getMonth() + 1
         const day = date.getDate()
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
         try {
-            // const sql = `
-            //     SELECT *
-            //     FROM games
-            //     WHERE date_trunc('day', game_begins)=$1
-            // `;
-
             const sql = `
-            select * from games WHERE CAST((game_begins AT TIME ZONE 'CST') AS date) = DATE '2021-12-03'
+                SELECT * 
+                FROM games 
+                WHERE CAST(("game_begins" AT TIME ZONE $2) AS date) = $1
+                ORDER BY "game_begins"
             `;
 
-            const games = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate]));
-            console.log(games);
+            const games = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate, timezone]));
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
@@ -325,6 +320,7 @@ class SportsDataOperations extends DatabaseOperations {
         let gamesHolder: GameToday[] = [];
 
         // query for games that are being played today
+        // TODO: make sure this works without timezone settings
         let games: GameModel[] = await this.getGamesByDate();
 
         if (games.length > 1 && games.length > 0) {
