@@ -33,7 +33,7 @@ router.get('/bball/game-day-check', async (req: Request, res: Response) => {
 router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     let date = new Date(req.body.date);
     let timezone = req.body.timeZone;
-    let games: GameModel[] = await sportOps.getGamesByDate(date);
+    let games: GameModel[] = await sportOps.getGamesByDate(date, timezone);
 
     // filter out games that will be played within the next 30 minutes
     let filteredGames: GameModel[] = games.filter((x: GameModel) => {
@@ -41,7 +41,12 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
             return x;
         }
     });
-    
+    allSocketConnections["LWc5wn1soefJ65i7Q9gxbBWLWSmNBWjcgc"].emit("game starting", {
+        gameUpdate: {
+            message: "A game you bet on is about to start",
+            gameId: 550
+        }
+    });
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
     } else if (!filteredGames.length) {
