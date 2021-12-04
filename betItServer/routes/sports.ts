@@ -41,7 +41,15 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
             return x;
         }
     });
-    console.log(allSocketConnections);
+    if (allSocketConnections.hasOwnProperty("LWc5wn1soefJ65i7Q9gxbBWLWSmNBWjcgc")) {
+        allSocketConnections["LWc5wn1soefJ65i7Q9gxbBWLWSmNBWjcgc"].emit("game starting", {
+            gameUpdate: {
+                message: "A game you bet on is about to start",
+                gameId: 550
+            }
+        });
+    }
+
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
     } else if (!filteredGames.length) {
