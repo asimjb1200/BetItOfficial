@@ -159,4 +159,15 @@ router.post('/change-email', authenticateJWT, async (req: Request, res: Response
   }
 });
 
+router.get('/test-emailer', async (req: Request, res: Response) => {
+  try{
+    let sendEmail = await emailHelper.testMessage("asimjbrown@gmail.com");
+    return res.status(200).json('good');
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('');
+  }
+
+});
+
 export default router;

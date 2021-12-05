@@ -7,10 +7,10 @@ class EmailHelper {
     #transporter: Transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 587,
-        secure: false,
+        secure: true,
         auth: {
             user: process.env.GMAILUSERNAME!,
-            pass: process.env.GMAILGUESTKEY!
+            pass: process.env.GMAILPASSWORD!
         }
     });
 
@@ -22,7 +22,7 @@ class EmailHelper {
 
     async testMessage(to: string) {
         let info = await this.#transporter.sendMail({
-            from: '"Bet It Crypto Gambling" <asimjbrown@gmail.com>',
+            from: '"Bet It Crypto Gambling" <support@bet-it-casino.com>',
             to,
             subject: "Your Game Is About To Start!",
             text: "A game you bet on is about to start.",
@@ -34,7 +34,7 @@ class EmailHelper {
 
     emailUser(to: string, subject: string, text: string): Promise<any> {
         return this.#transporter.sendMail({
-            from: '"Bet It Crypto Gambling" <asimjbrown@gmail.com>',
+            from: '"Bet It Crypto Gambling" <support@bet-it-casino.com>',
             to,
             subject,
             text,
