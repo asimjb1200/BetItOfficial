@@ -7,7 +7,7 @@ class EmailHelper {
     #transporter: Transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 587,
-        secure: true,
+        secure: false, // this stays false on all ports but 465
         auth: {
             user: process.env.GMAILUSERNAME!,
             pass: process.env.GMAILPASSWORD!
