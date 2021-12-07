@@ -41,6 +41,7 @@ router.post('/bball/games-by-date', async (req: Request, res: Response) => {
             return x;
         }
     });
+    console.log(filteredGames);
 
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
