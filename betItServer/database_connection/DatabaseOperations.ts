@@ -338,11 +338,10 @@ class SportsDataOperations extends DatabaseOperations {
                 */
 
                 const gameIds = gamesHolder.map(x => x.game_id);
-
-                await this.notifyUsersAboutGameTime(gameIds);
+                sportsLogger.info(`${gameIds.length} games are scheduled today. Their ID's are: ${gameIds.toString()}`)
 
                 await wagerOps.checkIfWagerForGameNotTaken(gameIds);
-
+                await this.notifyUsersAboutGameTime(gameIds);
                 await this.scoreChecker(gamesHolder);
             }
             return 'done';
@@ -459,54 +458,56 @@ class SportsDataOperations extends DatabaseOperations {
 
         let wagerParticipants: WagerParticipants[] = (await DatabaseOperations.dbConnection.query(gameSQL, gameIds)).rows;
 
-        // find the email for each wallet address
-        let emailArray = [];
-        for (const participants of wagerParticipants) {
-            let bettorEmail = await this.getEmailAddress(participants.bettor);
-            let faderEmail = await this.getEmailAddress(participants.fader);
-            emailArray.push({bettorEmail, faderEmail, gameTime: participants.game_begins?.toDateString() ?? "'no date found'"});
-        };
+        if (wagerParticipants.length) {
+            // find the email for each wallet address
+            let emailArray = [];
+            for (const participants of wagerParticipants) {
+                let bettorEmail = await this.getEmailAddress(participants.bettor);
+                let faderEmail = await this.getEmailAddress(participants.fader);
+                emailArray.push({bettorEmail, faderEmail, gameTime: participants.game_begins?.toDateString() ?? "'no date found'"});
+            };
 
-        // now send out an email to each notifying them of their game starting
-        let promiseArray = [];
-        for (const emailObject of emailArray) {
-            let subject = `Your Game Is About To Start!`;
-            let text = `A game you bet on is about to start on ${emailObject.gameTime}. Get Ready!`;
-            promiseArray.push(
-                emailHelper.emailUser(emailObject.bettorEmail, subject, text),
-                emailHelper.emailUser(emailObject.faderEmail, subject, text),
-            );
+            // now send out an email to each notifying them of their game starting
+            let promiseArray = [];
+            for (const emailObject of emailArray) {
+                let subject = `Your Game Is About To Start!`;
+                let text = `A game you bet on is about to start on ${emailObject.gameTime}. Get Ready!`;
+                promiseArray.push(
+                    emailHelper.emailUser(emailObject.bettorEmail, subject, text),
+                    emailHelper.emailUser(emailObject.faderEmail, subject, text),
+                );
+            }
+
+            // send out the emails
+            let emailsSentOut = await Promise.all(promiseArray);
+
+            // now find the socket that belongs to each address and notify them
+            wagerParticipants.forEach(x => {
+                if (allSocketConnections.hasOwnProperty(x.bettor)) {
+                    allSocketConnections[x.bettor].emit(
+                        "game starting", 
+                        {
+                            gameUpdate: {
+                                message: "A game you bet on is about to start",
+                                gameId: x.game_id
+                            }
+                        }
+                    );
+                }
+
+                if (allSocketConnections.hasOwnProperty(x.fader)) {
+                    allSocketConnections[x.fader].emit(
+                        "game starting",
+                        {
+                            gameUpdate: {
+                                message: "A game you bet on is about to start",
+                                gameId: x.game_id
+                            }
+                        }
+                    );
+                }
+            });
         }
-
-        // send out the emails
-        let emailsSentOut = await Promise.all(promiseArray);
-
-        // now find the socket that belongs to each address and notify them
-        wagerParticipants.forEach(x => {
-            if (allSocketConnections.hasOwnProperty(x.bettor)) {
-                allSocketConnections[x.bettor].emit(
-                    "game starting", 
-                    {
-                        gameUpdate: {
-                            message: "A game you bet on is about to start",
-                            gameId: x.game_id
-                        }
-                    }
-                );
-            }
-
-            if (allSocketConnections.hasOwnProperty(x.fader)) {
-                allSocketConnections[x.fader].emit(
-                    "game starting",
-                    {
-                        gameUpdate: {
-                            message: "A game you bet on is about to start",
-                            gameId: x.game_id
-                        }
-                    }
-                );
-            }
-        });
     }
 
     async getGameData(game: GameModel, intervalId: any) {
@@ -553,51 +554,53 @@ class WagerDataOperations extends DatabaseOperations {
         let wagerDataArray: ShortWagerData[] = (await DatabaseOperations.dbConnection.query(sql, [gameIds])).rows;
         let wagersToDelete: ShortWagerData[] = [];
         
-        wagerDataArray.forEach((wagerData: ShortWagerData) => {
-            if (!wagerData.fader) {
-                wagersToDelete.push(wagerData);
-            }
-        });
-
-        if (wagersToDelete.length) {
-            // delete all the wagers with no fader and free up db space
-            let deleteParams = "";
-            for (let index = 1; index <= wagersToDelete.length; index++) {
-                if (index != wagersToDelete.length) {
-                    deleteParams += `$${index},`;
-                } else {
-                    deleteParams += `$${index}`;
+        if (wagerDataArray.length) {
+            wagerDataArray.forEach((wagerData: ShortWagerData) => {
+                if (!wagerData.fader) {
+                    wagersToDelete.push(wagerData);
                 }
-            }
-
-            const deleteSql = `
-                DELETE FROM wagers
-                WHERE game_id IN (${deleteParams})
-            `;
-            const wagerIdsToDelete: number[] = wagersToDelete.map(x => x.id);
-            const numWagersDeleted = (await DatabaseOperations.dbConnection.query(deleteSql, [wagerIdsToDelete])).rows;
-            if (numWagersDeleted.length) {
-                wagerLogger.info(`${numWagersDeleted.length} wagers deleted today due to not having a fader.`);
-
-                let emailArray = [];
-                //send an email to the user that their wager was deleted due to no one taking it.
-                for (let index = 0; index < wagersToDelete.length; index++) {
-                    const element = wagersToDelete[index];
-                    let subject = "Your Wager Was Not Taken"
-                    let msg = `
-                        No one took your wager and the game you wanted to bet on has started or will be starting soon. 
-                        As a result, your wager has been deleted. The crypto you wanted to wager on this game has not been moved from your wallet.
-                    `;
-                    let emailAddress = await this.getEmailAddress(element.bettor);
-
-                    emailArray.push(emailHelper.emailUser(emailAddress, subject, msg));
+            });
+    
+            if (wagersToDelete.length) {
+                // delete all the wagers with no fader and free up db space
+                let deleteParams = "";
+                for (let index = 1; index <= wagersToDelete.length; index++) {
+                    if (index != wagersToDelete.length) {
+                        deleteParams += `$${index},`;
+                    } else {
+                        deleteParams += `$${index}`;
+                    }
                 }
-
-                // now send them bitches out
-                const emailsSentOut = await Promise.all(emailArray);
+    
+                const deleteSql = `
+                    DELETE FROM wagers
+                    WHERE game_id IN (${deleteParams})
+                `;
+                const wagerIdsToDelete: number[] = wagersToDelete.map(x => x.id);
+                const numWagersDeleted = (await DatabaseOperations.dbConnection.query(deleteSql, [wagerIdsToDelete])).rows;
+                if (numWagersDeleted.length) {
+                    wagerLogger.info(`${numWagersDeleted.length} wagers deleted today due to not having a fader.`);
+    
+                    let emailArray = [];
+                    //send an email to the user that their wager was deleted due to no one taking it.
+                    for (let index = 0; index < wagersToDelete.length; index++) {
+                        const element = wagersToDelete[index];
+                        let subject = "Your Wager Was Not Taken"
+                        let msg = `
+                            No one took your wager and the game you wanted to bet on has started or will be starting soon. 
+                            As a result, your wager has been deleted. The crypto you wanted to wager on this game has not been moved from your wallet.
+                        `;
+                        let emailAddress = await this.getEmailAddress(element.bettor);
+    
+                        emailArray.push(emailHelper.emailUser(emailAddress, subject, msg));
+                    }
+    
+                    // now send them bitches out
+                    const emailsSentOut = await Promise.all(emailArray);
+                }
+            } else {
+                wagerLogger.info("No inactive wagers on any games today.");
             }
-        } else {
-            wagerLogger.info("No inactive wagers on any games today.");
         }
     }
 
