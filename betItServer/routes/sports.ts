@@ -33,14 +33,14 @@ router.get('/bball/game-day-check', async (req: Request, res: Response) => {
 router.post('/bball/games-by-date', async (req: Request, res: Response) => {
     let date = new Date(req.body.date);
     let timezone = req.body.timeZone;
-    let filteredGames: GameModel[] = await sportOps.getGamesByDate(date, timezone);
+    let games: GameModel[] = await sportOps.getGamesByDate(date, timezone);
 
     // filter out games that will be played within the next 30 minutes
-    // let filteredGames: GameModel[] = games.filter((x: GameModel) => {
-    //     if (sportOps.gameIsMoreThan30MinsOut(x)) {
-    //         return x;
-    //     }
-    // });
+    let filteredGames: GameModel[] = games.filter((x: GameModel) => {
+        if (sportOps.gameIsMoreThan30MinsOut(x)) {
+            return x;
+        }
+    });
 
     if (filteredGames != null && filteredGames.length > 0) {
         res.status(200).json(filteredGames);
