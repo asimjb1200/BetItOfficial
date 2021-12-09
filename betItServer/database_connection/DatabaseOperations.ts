@@ -259,13 +259,11 @@ class SportsDataOperations extends DatabaseOperations {
             const sql = `
                 SELECT * 
                 FROM games 
-                WHERE CAST(("game_begins" AT TIME ZONE $2) AS date) = $1
+                WHERE CAST(("game_begins" AT TIME ZONE 'America/Chicago') AS date) = $1
                 ORDER BY "game_begins"
             `;
 
-
             const games = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate, timezone]));
-            console.log(games);
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
