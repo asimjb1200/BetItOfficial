@@ -263,7 +263,9 @@ class SportsDataOperations extends DatabaseOperations {
                 ORDER BY "game_begins"
             `;
 
+
             const games = (await DatabaseOperations.dbConnection.query(sql, [queryThisDate, timezone]));
+            console.log(games);
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
