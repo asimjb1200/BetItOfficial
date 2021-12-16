@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import isEmail from 'email-validator';
 const saltRounds = 10;
 import { dbOps, sportOps } from '../database_connection/DatabaseOperations.js';
-import { userLogger } from '../loggerSetup/logSetup.js';
+import { mainLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 import { LoginResponse } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
@@ -14,16 +14,6 @@ let router = express.Router();
 /* check your token */
 router.get('/check-token', authenticateJWT, function (req: Request, res: Response) {
   res.send({ message: 'Access Token Valid', status: 200 });
-});
-
-router.get('/test-emailer', async (req: Request, res: Response) => {
-  try {
-    let msgSent = await emailHelper.sendEmails();
-    res.status(200).json({msgSent});
-  } catch (err) {
-    console.error
-    res.status(500).json({msg: `${err}`});
-  }
 });
 
 /* Register a user */
@@ -124,6 +114,26 @@ router.post('/change-password', authenticateJWT, async (req: Request, res: Respo
       } else {
         res.status(400);
       }
+});
+
+router.post('/email-support', authenticateJWT, async (req: Request, res: Response) => {
+  // grab the details from the request
+  let {subject, message} = req.body;
+
+  // grab the user's email
+  let emailAddress = await dbOps.getUserEmail(req.user?.username!);
+
+  // pre-pend the user's email to the message
+  const newMessage = `<p><strong>Message From User: ${req.user?.username} (${emailAddress})</strong> <br>${message}</p>`;
+  
+  try {
+    // send the email to the support email
+    await emailHelper.emailSupport("support@bet-it-casino.com", subject, newMessage);
+    return res.status(200).json("support request received.");
+  } catch (err) {
+    mainLogger.error("Something went wrong when trying to deliver a support email: " + err);
+    return res.status(500).json("failed to deliver email");
+  }
 });
 
 // router.get('/load-db', async (req: Request, res: Response) => {

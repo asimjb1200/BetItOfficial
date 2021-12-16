@@ -32,13 +32,22 @@ class EmailHelper {
         return info.messageId;
     }
 
-    emailUser(to: string, subject: string, text: string): Promise<any> {
+    async emailUser(to: string, subject: string, text: string): Promise<any> {
         return this.#transporter.sendMail({
             from: '"Bet It Crypto Gambling" <support@bet-it-casino.com>',
             to,
             subject,
             text,
             html: "<h2>Good Luck!</h2>"
+        });
+    }
+
+    async emailSupport(to: string, subject: string, text: string): Promise<any> {
+        return this.#transporter.sendMail({
+            from: '"Bet It Crypto Gambling" <support@bet-it-casino.com>',
+            to,
+            subject,
+            html: text + "<br><h2>Good Luck!</h2>"
         });
     }
 
