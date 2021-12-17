@@ -8,6 +8,7 @@ import { mainLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { authenticateJWT, refreshOldToken } from '../tokens/token_auth.js';
 import { LoginResponse } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
+import { body, check, validationResult } from 'express-validator';
 import axios from 'axios';
 let router = express.Router();
 
@@ -17,42 +18,57 @@ router.get('/check-token', authenticateJWT, function (req: Request, res: Respons
 });
 
 /* Register a user */
-router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
-  const { username, password, email } = req.body;
-
-  try {
-    if (isEmail.validate(email)) {
-      if (typeof username == 'string' && typeof password == 'string') {
-        const hash = await bcrypt.hash(password, saltRounds);
-        console.log(`${email} ${password} ${hash}`);
-        // now post the user to the database
-        await dbOps.insertNewUser(username, hash, email);
-        return res.sendStatus(201);
-      } else {
-        throw new Error('username or password was not a string');
-      }
-    } else {
-      throw new Error('Invalid email address attempted.')
+router.post('/register',
+  [
+    check('email').isEmail().normalizeEmail(),
+    check('username').isAlphanumeric().notEmpty().trim().escape(),
+    check('password').notEmpty().isLength({min: 8, max: 16}).trim().escape()
+  ], 
+  async (req: Request, res: Response) => {
+    // validationResult function checks whether errors occurs or not and return an object
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() })
     }
-  } catch (error) {
-    userLogger.error("Error when trying to register user:  " + error);
-    res.sendStatus(500);
-  }
+    const { username, password, email } = req.body;
+
+    try {
+      const hash = await bcrypt.hash(password, saltRounds);
+      
+      // now post the user to the database
+      await dbOps.insertNewUser(username, hash, email);
+      return res.sendStatus(201);
+    } catch (error) {
+      userLogger.error("Error when trying to register user:  " + error);
+      res.sendStatus(500);
+    }
 });
 
-router.post('/login', async (req: Request, res: Response) => {
-  // Read username and password from request body
-  const { username, password } = req.body;
-  try {
-    const loginInfo: LoginResponse = await dbOps.login(username, password);
-    if (loginInfo.validUser && loginInfo.tokens && loginInfo.user) {
-      res.status(200).json(loginInfo.user);
-    } else {
-      res.status(401).send('Invalid login info');
+router.post(
+  '/login',
+  [
+    check('username').notEmpty().isAlphanumeric().trim().escape(),
+    check('password').notEmpty().isLength({min: 8, max: 16}).trim().escape()
+  ], 
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+
+    // TODO: remove the attempted password from the errors array that is returned
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() })
     }
-  } catch (loginError) {
-    res.status(500).send('Could not log user in')
-  }
+    // Read username and password from request body
+    const { username, password } = req.body;
+    try {
+      const loginInfo: LoginResponse = await dbOps.login(username, password);
+      if (loginInfo.validUser && loginInfo.tokens && loginInfo.user) {
+        res.status(200).json(loginInfo.user);
+      } else {
+        res.status(401).send('Invalid login info');
+      }
+    } catch (loginError) {
+      res.status(500).send('Could not log user in')
+    }
 });
 
 router.post('/refresh-token', async (req: Request, res: Response) => {
@@ -80,43 +96,55 @@ router.post('/logout', authenticateJWT, async (req: Request, res: Response) => {
     }
 });
 
-router.post('/change-password', authenticateJWT, async (req: Request, res: Response) => {
+router.post(
+  '/change-password',
+  [
+    authenticateJWT,
+    check('username', 'Please use only text and alphanumeric characters').exists().isString().isAlphanumeric().notEmpty().trim().escape(),
+    check('oldPassword', 'Please use only alphanumeric characters and make the length between 8-16 chars').exists().isString().isAlphanumeric().notEmpty().trim().isLength({min: 8, max: 16}).escape(),
+    check('newPassword', 'Please use only alphanumeric characters and make the length between 8-16 chars').exists().isString().isAlphanumeric().notEmpty().trim().isLength({min: 8, max: 16}).escape()
+  ], 
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() })
+    }
+    const {newPassword, oldPassword, username} = req.body;
 
-  if (req.body.hasOwnProperty("username") && req.body.hasOwnProperty("oldPassword") && req.body.hasOwnProperty("newPassword") &&
-      typeof req.body.username == 'string' && typeof req.body.oldPassword == 'string' && typeof req.body.newPassword == 'string') {
-        const {newPassword, oldPassword, username} = req.body;
+    // grab the data that I have on file
+    let passwordHashOnFile = await dbOps.findUserAndPassword(username);
+    
+    if (passwordHashOnFile) {
+      const passwordsMatch = await bcrypt.compare(oldPassword, passwordHashOnFile);
 
-        // grab the data that I have on file
-        let passwordHashOnFile = await dbOps.findUserAndPassword(username);
-        
-        if (passwordHashOnFile) {
-          const passwordsMatch = await bcrypt.compare(oldPassword, passwordHashOnFile);
+      if (passwordsMatch) {
+        // create a hash from the new password
+        let newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
-          if (passwordsMatch) {
-            // create a hash from the new password
-            let newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
-  
-            // swap the passwords out
-            const passwordIsChanged = await dbOps.swapPasswords(passwordHashOnFile, newPasswordHash);
+        // swap the passwords out
+        const passwordIsChanged = await dbOps.swapPasswords(passwordHashOnFile, newPasswordHash);
 
-            // send an email to the user
-            let email = await dbOps.getUserEmail(username);
-            await emailHelper.emailUser(email, "Your Password Has Been Updated", "If you didn't initiate this contact us immediately.");
+        // send an email to the user
+        let email = await dbOps.getUserEmail(username);
+        await emailHelper.emailUser(email, "Your Password Has Been Updated", "If you didn't initiate this contact us immediately.");
 
-            res.status(200).json({message: "Password updated"});
-          } else {
-            res.status(403).json({message: 'That password was incorrect'});
-          }
-        } else {
-          res.status(404).json({message: "That password wasn't in our records."})
-        }
-
+        return res.status(200).json({message: "Password updated"});
       } else {
-        res.status(400);
+        return res.status(403).json({message: 'That password was incorrect'});
       }
+    } else {
+      return res.status(404).json({message: "That password wasn't in our records."})
+    }
 });
 
-router.post('/email-support', authenticateJWT, async (req: Request, res: Response) => {
+router.post(
+  '/email-support',
+  [
+    authenticateJWT,
+      check('subject', 'Please use only alphanumeric characters').exists().isAlphanumeric().notEmpty().trim().escape(),
+      check('message', 'Please use only alphanumeric characters').exists().notEmpty().isAlphanumeric().trim().escape()
+  ], 
+  async (req: Request, res: Response) => {
   // grab the details from the request
   let {subject, message} = req.body;
 
@@ -145,39 +173,40 @@ router.post('/email-support', authenticateJWT, async (req: Request, res: Respons
 //    }
 // });
 
-router.post('/change-email', authenticateJWT, async (req: Request, res: Response) => {
-  const {username, password, newEmail} = req.body;
-  // make sure the password is the correct one for the user
-  let passwordHashOnFile = await dbOps.findUserAndPassword(username);
+router.post(
+  '/change-email', 
+  [
+    authenticateJWT,
+    check('username').exists().notEmpty().isAlphanumeric(),
+    check('password').exists().notEmpty().isAlphanumeric().isLength({min: 8, max: 16}),
+    check('newEmail').exists().notEmpty().isEmail().normalizeEmail()
+  ], 
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ errors: errors.array() })
+    }
+    const {username, password, newEmail} = req.body;
+    // make sure the password is the correct one for the user
+    let passwordHashOnFile = await dbOps.findUserAndPassword(username);
 
-  if (passwordHashOnFile) {
-    const passwordsMatch = await bcrypt.compare(password, passwordHashOnFile);
+    if (passwordHashOnFile) {
+      const passwordsMatch = await bcrypt.compare(password, passwordHashOnFile);
 
-    if (passwordsMatch) {
-      const emailUpdated = await dbOps.updateEmail(username, newEmail);
-      if (emailUpdated) {
-        await emailHelper.emailUser(newEmail, "Your Email Address Has Been Updated", "If you didn't make this change contact us.");
-        res.status(200).json({message: "Email updated."});
+      if (passwordsMatch) {
+        const emailUpdated = await dbOps.updateEmail(username, newEmail);
+        if (emailUpdated) {
+          await emailHelper.emailUser(newEmail, "Your Email Address Has Been Updated", "If you didn't make this change contact us.");
+          res.status(200).json({message: "Email updated."});
+        } else {
+          res.status(500).json({message: "There was an error updating the email."});
+        }
       } else {
-        res.status(500).json({message: "There was an error updating the email."});
+        res.status(403).json({message: "Wrong password for that account"});
       }
     } else {
-      res.status(403).json({message: "Wrong password for that account"});
+      res.status(404).json({message: "That user doesn't exist."});
     }
-  } else {
-    res.status(404).json({message: "That user doesn't exist."});
-  }
-});
-
-router.get('/test-emailer', async (req: Request, res: Response) => {
-  try{
-    let sendEmail = await emailHelper.testMessage("asimjbrown@gmail.com");
-    return res.status(200).json('good');
-  } catch (err) {
-    console.log(err);
-    return res.status(500).send('');
-  }
-
 });
 
 export default router;
