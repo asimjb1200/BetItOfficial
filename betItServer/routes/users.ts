@@ -209,4 +209,20 @@ router.post(
     }
 });
 
+router.get('/deactivate-account', async (req: Request, res: Response) => {
+    // delete the user from the db
+    if (req.user) {
+      try {
+        await dbOps.removeUser(req.user?.username);
+        return res.status(200).json("User successfully deleted");
+      } catch (error) {
+        userLogger.error(`There was an error when removing ${req.user.username} from the database: ${JSON.stringify(error)}`);
+        return res.status(500).json("unable to delete user");
+      }
+    } else {
+      return res.status(403).json("The token you attempted is not attached to a user");
+    }
+  }
+);
+
 export default router;

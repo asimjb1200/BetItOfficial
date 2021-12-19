@@ -121,8 +121,9 @@ class DatabaseOperations {
 
     }
 
-    removeUser(userName: string) {
-
+    async removeUser(userName: string) {
+        const sql = `DELETE FROM users WHERE username=$1`;
+        await DatabaseOperations.dbConnection.query(sql, [userName]);
     }
 
     /**
@@ -138,10 +139,6 @@ class DatabaseOperations {
         let updateMe = await DatabaseOperations.dbConnection.query(insertRefreshTokenQuery, insertAccessTokenQueryValues);
 
         return { accessToken, refreshToken };
-    }
-
-    findAccessToken(accessToken: string) {
-
     }
 
     async findRefreshToken(refreshToken: string): Promise<string | undefined> {
