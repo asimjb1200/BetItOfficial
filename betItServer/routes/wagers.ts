@@ -4,7 +4,7 @@ import { userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
 import { dbOps, ltcOps, sportOps, wagerOps } from '../database_connection/DatabaseOperations.js';
 import { WagerModel } from '../models/dbModels/dbModels.js';
 import {allSocketConnections, io} from '../bin/www.js'
-import { WagerStatus } from '../models/dataModels.js';
+import { MainResponseToClient, WagerStatus } from '../models/dataModels.js';
 import { emailHelper } from '../EmailNotifications/EmailWorker.js';
 import { check, query, validationResult } from 'express-validator';
 let router = express.Router();
@@ -170,6 +170,13 @@ router.get('/get-users-wagers', query('walletAddr').exists().isString().isAlphan
     try {
         // search the database for the user's bets
         const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
+        
+        if (res.locals.hasOwnProperty('newAccessToken') && res.locals.newAccessToken) {
+            const responseObj: MainResponseToClient<WagerStatus[]> = {
+                dataForClient: userWagers,
+                newAccessToken: res.locals.newAccessToken
+            }
+        }
         res.status(200).json(userWagers);
     } catch (error) {
         wagerLogger.error(`Error when fetching wagers for ${req.query.walletAddr}.\n${error}`);

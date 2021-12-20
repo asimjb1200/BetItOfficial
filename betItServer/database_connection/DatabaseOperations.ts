@@ -44,7 +44,7 @@ class DatabaseOperations {
                 try {
                     // generate and save refresh token to the db
                     const tokens: UserTokens = await this.insertTokensForUser(username);
-                    const verifiedUser: JWTUser = (await jwt.verify(tokens.accessToken, process.env.ACCESSTOKENSECRET!))as JWTUser;
+                    const verifiedUser: JWTUser = jwt.verify(tokens.accessToken, process.env.ACCESSTOKENSECRET!) as JWTUser;
 
                     // construct the user model for the client to use
                     const {wallet_address} = user.rows[0]
@@ -144,6 +144,13 @@ class DatabaseOperations {
     async findRefreshToken(refreshToken: string): Promise<string | undefined> {
         const findRefresh = 'SELECT refresh_token FROM users WHERE refresh_token=$1';
         const findRefreshValues = [refreshToken];
+        return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0].refresh_token;
+    }
+
+    /** Look up the user's refresh_token by their username */
+    async findRefreshTokenByUser(username: string): Promise<string | undefined> {
+        const findRefresh = 'SELECT refresh_token FROM users WHERE username=$1';
+        const findRefreshValues = [username];
         return (await DatabaseOperations.dbConnection.query(findRefresh, findRefreshValues)).rows[0].refresh_token;
     }
 

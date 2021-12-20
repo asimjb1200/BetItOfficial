@@ -52,7 +52,6 @@ router.post(
   ], 
   async (req: Request, res: Response) => {
     const errors = validationResult(req);
-
     // TODO: remove the attempted password from the errors array that is returned
     if (!errors.isEmpty()) {
       return res.status(422).json({ errors: errors.array() })
