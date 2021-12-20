@@ -326,12 +326,18 @@ export type RapidApiNbaGameData = {
 }
 
 export type RapidApiTeamData = {
-    teamId:string
-    shortName:string
-    fullName:string
-    nickName:string
-    logo:string
+    teamId:string;
+    shortName:string;
+    fullName:string;
+    nickName:string;
+    logo:string;
     score?: {
         points:string
     }
+}
+
+/** the data for client parameter will take the shape of whatever type that needs to be returned */
+export type MainResponseToClient <T> = {
+    dataForClient: T;
+    newAccessToken?: string;
 }

@@ -3,7 +3,7 @@ import axios, { AxiosResponse } from'axios';
 import * as cp from 'child_process';
 import { dbOps, sportOps } from '../database_connection/DatabaseOperations.js';
 import { stderr, stdout } from 'process';
-import { BallDontLieData } from '../models/dataModels.js';
+import { BallDontLieData, MainResponseToClient } from '../models/dataModels.js';
 import { GameModel } from '../models/dbModels/dbModels.js';
 import { mainLogger } from '../loggerSetup/logSetup.js';
 import { allSocketConnections, io } from '../bin/www.js';
@@ -42,6 +42,7 @@ router.post(
         if (!errors.isEmpty()) {
           return res.status(422).json({ errors: errors.array() })
         }
+
         let date = new Date(req.body.date);
         let timezone = req.body.timeZone;
         let games: GameModel[] = await sportOps.getGamesByDate(date, timezone);
@@ -54,6 +55,12 @@ router.post(
         });
 
         if (filteredGames != null && filteredGames.length > 0) {
+            if (res.locals.hasOwnProperty('newAccessToken') && res.locals.newAccessToken) {
+                const responseObj: MainResponseToClient<GameModel[]> = {
+                    dataForClient: filteredGames,
+                    newAccessToken: res.locals.newAccessToken
+                }
+            }
             res.status(200).json(filteredGames);
         } else if (!filteredGames.length) {
             res.status(200).json(filteredGames);
