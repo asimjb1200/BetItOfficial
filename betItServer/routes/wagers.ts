@@ -36,9 +36,17 @@ router.post(
                         wagersThatPassedTest.push(x);
                     }
                 }
+
+                let responseObj: MainResponseToClient<WagerModel[]> = {
+                    dataForClient: wagersThatPassedTest
+                }
+
+                if (res.locals.newAccessToken) {
+                    responseObj.newAccessToken = res.locals.newAccessToken;
+                }
                 
                 if (wagersThatPassedTest.length > 0) {
-                    res.status(200).json(wagersThatPassedTest);
+                    res.status(200).json(responseObj);
                 } else {
                     res.status(404).json([]);
                 }
@@ -88,8 +96,15 @@ router.post(
             // emit the updated wager to the app so that everyone will update their views
             io.emit('wager updated', {msg: 'A wager has just been taken', wager: updatedWager});
 
+            let responseObj: MainResponseToClient<WagerModel> = {
+                dataForClient: updatedWager
+            };
+
+            if (res.locals.newAccessToken) {
+                responseObj.newAccessToken = res.locals.newAccessToken;
+            }
             // now everything is okay
-            return res.status(200).json(updatedWager);
+            return res.status(200).json(responseObj);
         } catch (error) {
             wagerLogger.error(`Wasn't able to add a fader ${req.body.fader_address} to wager ${req.body.wager_id}.\n ${error}`)
             return res.status(500).json({message: "Something went wrong while trying to add a fader."})
@@ -121,7 +136,11 @@ router.post(
         const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
         try {
             await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
-            res.status(201).json({message: 'Wager Created'});
+            let responseObj: MainResponseToClient<{message: string}> = {dataForClient: {message: 'Wager Created'}};
+            if (res.locals.newAccessToken) {
+                responseObj.newAccessToken = res.locals.newAccessToken;
+            }
+            res.status(201).json(responseObj);
         } catch (error) {
             wagerLogger.error(`An error occurred when creating a new wager for ${bettor} for team ${bettorChosenTeam} on game ${gameId} with an amount of ${wagerAmount} LTC.\n ${error}`);
             res.status(500).json({message: "Something went wrong while trying to create the wager."});
@@ -137,10 +156,15 @@ router.get(
             return res.status(422).json({ errors: errors.array() })
         }
         const walletOccurrences = await wagerOps.checkAddressWagerCount(req.query.walletAddress as string);
+        let responseObj: MainResponseToClient<{numberOfBets: number}> = { dataForClient: { numberOfBets: Number(walletOccurrences.count) } }
+        if (res.locals.newAccessToken) {
+            responseObj.newAccessToken = res.locals.newAccessToken;
+        }
         if (walletOccurrences != null) {
-            res.status(200).json({numberOfBets: Number(walletOccurrences.count)})
+            res.status(200).json(responseObj)
         } else {
-            res.status(200).json({numberOfBets: 0});
+            responseObj.dataForClient.numberOfBets = 0
+            res.status(200).json(responseObj);
         }
 });
 
@@ -170,14 +194,13 @@ router.get('/get-users-wagers', query('walletAddr').exists().isString().isAlphan
     try {
         // search the database for the user's bets
         const userWagers: WagerStatus[] = await wagerOps.getUsersWagers(walletAddr);
-        
-        if (res.locals.hasOwnProperty('newAccessToken') && res.locals.newAccessToken) {
-            const responseObj: MainResponseToClient<WagerStatus[]> = {
-                dataForClient: userWagers,
-                newAccessToken: res.locals.newAccessToken
-            }
+        const responseObj: MainResponseToClient<WagerStatus[]> = {
+            dataForClient: userWagers
         }
-        res.status(200).json(userWagers);
+        if (res.locals.newAccessToken) {
+            responseObj.newAccessToken = res.locals.newAccessToken;
+        }
+        res.status(200).json(responseObj);
     } catch (error) {
         wagerLogger.error(`Error when fetching wagers for ${req.query.walletAddr}.\n${error}`);
         res.status(500).json({message: 'There was a problem fetching the records'})

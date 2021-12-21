@@ -54,16 +54,17 @@ router.post(
             }
         });
 
+        const responseObj: MainResponseToClient<GameModel[]> = {
+            dataForClient: filteredGames
+        }
+
         if (filteredGames != null && filteredGames.length > 0) {
-            if (res.locals.hasOwnProperty('newAccessToken') && res.locals.newAccessToken) {
-                const responseObj: MainResponseToClient<GameModel[]> = {
-                    dataForClient: filteredGames,
-                    newAccessToken: res.locals.newAccessToken
-                }
+            if (res.locals.newAccessToken) {
+                responseObj.newAccessToken = res.locals.newAccessToken;
             }
-            res.status(200).json(filteredGames);
+            res.status(200).json(responseObj);
         } else if (!filteredGames.length) {
-            res.status(200).json(filteredGames);
+            res.status(200).json(responseObj);
         } else {
             res.status(200).json([]);
         }

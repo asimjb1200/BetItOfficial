@@ -13,7 +13,6 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
         const token = authHeader.split(' ')[1];
 
         jwt.verify(token, process.env.ACCESSTOKENSECRET!, async (err: any, user: any) => {
-
             // if the token isn't valid, send them a forbidden code
             if (err) {
                 tokenLogger.warn("Invalid access token attempted: " + err)
@@ -40,6 +39,7 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
                     res.sendStatus(newAccessTokenResponse);
                 } else {
                     res.locals.newAccessToken = newAccessTokenResponse;
+                    userLogger.info(`New access token issued for ${req.user.username}`);
                     next();
                 }
             } else {

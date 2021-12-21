@@ -1,18 +1,18 @@
 import { number } from "bitcoinjs-lib/types/script";
 
 export type AddressInformation = {
-    data: {
-        private: string;
-        public: string;
-        wif: string;
-        address: string;
-    }
+    data: ClientWalletInfo
 }
 
 export type WalletInfo = {
     token: string;
     name: string;
     addresses: string[];
+}
+
+export type WalletBalanceData = {
+    balance: number;
+    dollarEquivalent: number;
 }
 
 declare global {
@@ -334,6 +334,13 @@ export type RapidApiTeamData = {
     score?: {
         points:string
     }
+}
+
+export type ClientWalletInfo =  {
+    private: string;
+    public: string;
+    wif: string;
+    address: string;
 }
 
 /** the data for client parameter will take the shape of whatever type that needs to be returned */

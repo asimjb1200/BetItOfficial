@@ -1,7 +1,7 @@
 'use strict';
 export { };
 import { Request, Response } from 'express';
-import {BlockCypherAddressData, BlockCypherTx, BlockCypherTxInput, BlockCypherTxOutput, BlockCypherTxRef, TxHashInfo, WalletTxPreview } from '../models/dataModels.js';
+import {BlockCypherAddressData, BlockCypherTx, BlockCypherTxInput, BlockCypherTxOutput, BlockCypherTxRef, ClientWalletInfo, MainResponseToClient, TxHashInfo, WalletBalanceData, WalletInfo, WalletTxPreview } from '../models/dataModels.js';
 import express from 'express';
 import { dbOps, ltcOps } from '../database_connection/DatabaseOperations.js';
 import { json } from 'body-parser';
@@ -18,7 +18,12 @@ router.post('/create-ltc-addr', check('userName').exists().notEmpty().isString()
     }
     try {
         const walletInfo = await ltcOps.createAddr(false, req.body.userName as string);
-        res.status(200).json(walletInfo);
+        const responseObj: MainResponseToClient<ClientWalletInfo> = { dataForClient: walletInfo };
+        if (res.locals.newAccessToken) {
+            responseObj.newAccessToken = res.locals.newAccessToken;
+        }
+
+        res.status(200).json(responseObj);
     } catch (error) {
         if (axios.isAxiosError(error)) {
             apiLogger.error(`There was a problem creating a wallet for the user ${req.body.userName}: ${JSON.stringify(error.response?.data)}`);
@@ -110,7 +115,11 @@ router.get('/wallet-history/:walletAddress', param('walletAddress').exists().not
             }
         });
 
-        res.status(200).json(clientObjects);
+        const responseObj: MainResponseToClient<WalletTxPreview[]> = {dataForClient: clientObjects}
+        if (res.locals.newAccessToken) {
+            responseObj.newAccessToken = res.locals.newAccessToken;
+        }
+        res.status(200).json(responseObj);
     } catch (err) {
         if (axios.isAxiosError(err)) {
             mainLogger.error(`There was a problem retrieving the wallet's information: \n${err.response?.data}`);
@@ -135,9 +144,14 @@ router.post(
 
         if (walletOwnerData.wallet_address == req.body.address) {
             try {
-                let balance: number = await ltcOps.fetchWalletBalance(req.body.address);
-                let dollarEquivalent: number = await ltcOps.fetchUSDPrice();
-                res.status(200).json({balance: Number((balance/10e7).toFixed(7)), dollarEquivalent: (Number((balance/10e7).toFixed(7)))*dollarEquivalent});
+                const balance: number = await ltcOps.fetchWalletBalance(req.body.address);
+                const dollarEquivalent: number = await ltcOps.fetchUSDPrice();
+                const dataForClient: WalletBalanceData = {balance: Number((balance/10e7).toFixed(7)), dollarEquivalent: (Number((balance/10e7).toFixed(7)))*dollarEquivalent};
+                const responseObj: MainResponseToClient<WalletBalanceData> = { dataForClient };
+                if (res.locals.newAccessToken) {
+                    responseObj.newAccessToken = res.locals.newAccessToken;
+                }
+                res.status(200).json(responseObj);
             } catch (err) {
                 if (axios.isAxiosError(err)) {
                     mainLogger.error(`

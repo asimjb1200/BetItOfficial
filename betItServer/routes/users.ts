@@ -70,16 +70,6 @@ router.post(
     }
 });
 
-router.post('/refresh-token', async (req: Request, res: Response) => {
-  const { token } = req.body;
-  const result = await refreshOldToken(token);
-  if (typeof result === 'string') {
-    res.json(result);
-  } else {
-    res.status(result).send("your refresh token has expired. Login again")
-  }
-});
-
 router.post('/logout', authenticateJWT, async (req: Request, res: Response) => {
     // delete the user's refresh token from the database
     if (req.user?.username) {
