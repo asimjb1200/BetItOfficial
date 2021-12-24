@@ -319,12 +319,12 @@ class SportsDataOperations extends DatabaseOperations {
         await DatabaseOperations.dbConnection.query(query, [dateObj]);
     }
 
+    /** this method runs once a day to check for games that are being played today. */
     async gameDayCheck() {
         // create a holder for each game id and the teams in each game
         let gamesHolder: GameToday[] = [];
 
         // query for games that are being played today
-        // TODO: make sure this works without timezone settings
         let games: GameModel[] = await this.getGamesByDate();
 
         if (games.length > 1 && games.length > 0) {
@@ -579,7 +579,7 @@ class WagerDataOperations extends DatabaseOperations {
                         WHERE game_id IN (${deleteParams})
                     `;
                     const wagerIdsToDelete: number[] = wagersToDelete.map(x => x.id);
-                    const numWagersDeleted = (await DatabaseOperations.dbConnection.query(deleteSql, [wagerIdsToDelete])).rows;
+                    const numWagersDeleted = (await DatabaseOperations.dbConnection.query(deleteSql, wagerIdsToDelete)).rows;
                     if (numWagersDeleted.length) {
                         wagerLogger.info(`${numWagersDeleted.length} wagers deleted today due to not having a fader.`);
         
@@ -605,7 +605,7 @@ class WagerDataOperations extends DatabaseOperations {
                 }
             }
         } catch (error) {
-            console.log(error);
+            wagerLogger.error(`There was an issue when trying to gather the wagers for deletion. The game id's are: ${gameIds.toString()} and the error is: \n\t${error}`);
         }
     }
 
