@@ -609,6 +609,43 @@ class WagerDataOperations extends DatabaseOperations {
         }
     }
 
+    async findEmailAddressForBettorAndFader(wagerId: number) {
+        const sql = `
+            SELECT 
+                bettor,
+                fader
+            FROM
+                wagers
+            WHERE 
+                id=$1
+        `;
+        const bettorAndFader: {bettor: string, fader?: string} = (await DatabaseOperations.dbConnection.query(sql, [wagerId])).rows[0];
+
+        if (bettorAndFader.fader) {
+            const emailSql = `
+                SELECT
+                    email
+                FROM 
+                    users
+                WHERE wallet_address IN ($1, $2)
+            `;
+
+            const emailAddress: {email: string}[] = (await DatabaseOperations.dbConnection.query(emailSql, [bettorAndFader.bettor, bettorAndFader.fader])).rows;
+            return emailAddress;
+        } else {
+            const emailSql = `
+                SELECT
+                    email
+                FROM 
+                    users
+                WHERE wallet_address =$1
+            `;
+
+            const emailAddress: {email: string} = (await DatabaseOperations.dbConnection.query(emailSql, [bettorAndFader.bettor])).rows[0];
+            return [emailAddress];
+        }
+    }
+
     async cancelWager() {
 
     }

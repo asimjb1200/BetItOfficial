@@ -37,8 +37,7 @@ class EmailHelper {
             from: '"Bet It Crypto Gambling" <support@bet-it-casino.com>',
             to,
             subject,
-            text,
-            html: "<h2>Good Luck!</h2>"
+            html: text + "<br><h2>Good Luck!</h2>"
         });
     }
 

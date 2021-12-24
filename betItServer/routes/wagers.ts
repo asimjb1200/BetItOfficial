@@ -174,9 +174,16 @@ router.post('/delete-wager', check('wagerId').exists().bail().notEmpty().bail().
         return res.status(422).json({ errors: errors.array() })
     }
     try {
+        // get the email addresses of the users in the wager
+        const emailAddress = await wagerOps.findEmailAddressForBettorAndFader(req.body.wagerId);
+
         await wagerOps.deleteWager(req.body.wagerId);
-        // TODO: email the user and send a message to their socket informing them of the deletion
-        // io.to(allSocketConnections[])
+
+        // email the user informing them of the deletion
+        for (let emailObj of emailAddress) {
+            emailHelper.emailUser(emailObj.email, "Your Wager Was Deleted", "<p>You have elected to cancel your wager. It has been removed from our servers.</p>");
+        }
+
         res.status(200).send('OK');
     } catch(err) {
         console.log(err)
