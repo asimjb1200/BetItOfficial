@@ -1,4 +1,4 @@
-import jwt, { JsonWebTokenError, JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { tokenLogger, userLogger } from '../loggerSetup/logSetup.js';
 import { dbOps } from '../database_connection/DatabaseOperations.js';
