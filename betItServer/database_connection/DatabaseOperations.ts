@@ -117,10 +117,6 @@ class DatabaseOperations {
         return updatedData;
     }
 
-    updateWalletAddr(walletAddr: string) {
-
-    }
-
     async removeUser(userName: string) {
         const sql = `DELETE FROM users WHERE username=$1`;
         await DatabaseOperations.dbConnection.query(sql, [userName]);
