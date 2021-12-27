@@ -506,15 +506,6 @@ class SportsDataOperations extends DatabaseOperations {
             });
         }
     }
-
-    async getGameData(game: GameModel, intervalId: any) {
-    }
-
-    async checkWinner(date: Date, homeTeam: string, awayTeam: string) {
-    }
-
-    async updateGameData(gameId: number, homeScore: number, awayScore: number, winningTeam: string) {
-    }
 }
 
 class WagerDataOperations extends DatabaseOperations {
@@ -640,10 +631,6 @@ class WagerDataOperations extends DatabaseOperations {
             const emailAddress: {email: string} = (await DatabaseOperations.dbConnection.query(emailSql, [bettorAndFader.bettor])).rows[0];
             return [emailAddress];
         }
-    }
-
-    async cancelWager() {
-
     }
 
     async findEscrowAddrViaWagerId(wagerId: string): Promise<string> {
