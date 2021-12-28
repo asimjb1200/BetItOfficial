@@ -697,6 +697,11 @@ class WagerDataOperations extends DatabaseOperations {
         await DatabaseOperations.dbConnection.query(sql, [wagerId]);
     }
 
+    async deleteEscrow(wagerId: number) {
+        const sql = `DELETE FROM escrow WHERE wager_id=$1`;
+        await DatabaseOperations.dbConnection.query(sql, [wagerId]);
+    }
+
     async getWagersByGameId(gameId: number, walletAddr?: string) {
         let sql: string;
         if (walletAddr) {

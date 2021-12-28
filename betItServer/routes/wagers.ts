@@ -170,6 +170,7 @@ router.post('/delete-wager', check('wagerId').exists().bail().notEmpty().bail().
         // get the email addresses of the users in the wager
         const emailAddress = await wagerOps.findEmailAddressForBettorAndFader(req.body.wagerId);
 
+        await wagerOps.deleteEscrow(req.body.wagerId);
         await wagerOps.deleteWager(req.body.wagerId);
 
         // email the user informing them of the deletion
@@ -179,7 +180,6 @@ router.post('/delete-wager', check('wagerId').exists().bail().notEmpty().bail().
 
         res.status(200).send('OK');
     } catch(err) {
-        console.log(err)
         wagerLogger.error(`Problem trying to delete wager ${req.body.wagerId}.\n ${err}`)
         res.status(500).send({message: "Something went wrong when trying to delete. Try again."})
     }
