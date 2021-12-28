@@ -127,8 +127,6 @@ router.post(
 
         const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
         try {
-            console.log(`${wagerAmount} is a ${typeof wagerAmount}`);
-            // TODO: FIX LTC CONVERSION FUNCTION
             await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
             let responseObj: MainResponseToClient<{message: string}> = {dataForClient: {message: 'Wager Created'}};
             if (res.locals.newAccessToken) {
