@@ -73,6 +73,7 @@ router.post(
         const faderAddr = req.body.fader_address
         const wagerId = req.body.wager_id
 
+        // FIXME: This function doesn't work correctly
         try {
             // make the update to the wager
             let updatedWager: WagerModel = await wagerOps.updateWagerWithFader(wagerId, faderAddr);

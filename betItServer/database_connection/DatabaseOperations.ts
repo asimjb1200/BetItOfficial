@@ -339,7 +339,7 @@ class SportsDataOperations extends DatabaseOperations {
 
                 const gameIds = gamesHolder.map(x => x.game_id);
 
-                await wagerOps.checkIfWagerForGameNotTaken(gameIds);
+                //await wagerOps.checkIfWagerForGameNotTaken(gameIds);
                 await this.notifyUsersAboutGameTime(gameIds);
                 await this.scoreChecker(gamesHolder);
             }
@@ -371,6 +371,8 @@ class SportsDataOperations extends DatabaseOperations {
         let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
 
         let intervalId = setInterval(async () => {
+            requestArr = []; // reset the array for each go around to make sure we don't have duplicate data
+            
             // grab the game id from each game and build a request with it
             todaysGames.forEach(x => {
                 requestArr.push(axios.get(`${this.#rapidApiNBA}games/gameId/${x.game_id}`, this.#rapidApiConfig));
@@ -381,7 +383,7 @@ class SportsDataOperations extends DatabaseOperations {
                 // find out which games were completed
                 for (const gameData of dataForGames) {
                     let game = gameData.api.games[0];
-                    // check to see if the game is over
+                    
                     if (game.statusGame == 'Finished') {
                         let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.vTeam.teamId);
 
@@ -395,14 +397,27 @@ class SportsDataOperations extends DatabaseOperations {
                             if (todaysGames.length == 0) {
                                 // then stop the interval
                                 clearInterval(intervalId);
-                            } else {
-                                // reset the array so that we have a fresh start for the next go around
-                                requestArr = [];
                             }
                         } catch (error) {
                             wagerLogger.error(`Issue saving game winner to db for game : ${Number(game.gameId)}. \n Error: ` + error);
                             // then stop the interval
                             clearInterval(intervalId);
+                        }
+                    } else if(game.currentPeriod === "1/4") {
+                        // this means the game has started, now we'll check for wagers that haven't been taken
+                        const sql = `
+                            DELETE FROM wagers WHERE game_id=$1 AND fader IS null RETURNING *
+                        `;
+
+                        const wagersDeleted: WagerModel[] = (await DatabaseOperations.dbConnection.query(sql, [Number(game.gameId)])).rows;
+
+                        if (wagersDeleted.length) {
+                            wagerLogger.info(`Deleted ${wagersDeleted.length} wagers for game ${game.gameId} due to them not being active`);
+                            // now email the users telling them that their wager wasn't taken
+                            for (const wager of wagersDeleted) {
+                                const bettorEmailAddress = await dbOps.getEmailAddress(wager.bettor);
+                                emailHelper.emailUser(bettorEmailAddress, "No One Took Your Bet", "No one took your bet before game time. Your bet has been removed and no crypto was taken from your wallet.");
+                            }
                         }
                     }
                 }
@@ -447,7 +462,8 @@ class SportsDataOperations extends DatabaseOperations {
             FROM wagers
             INNER JOIN games
             ON wagers.game_id = games.game_id
-            WHERE games.game_id IN (${sqlParams})`;
+            WHERE games.game_id IN (${sqlParams})
+            AND wagers.fader IS NOT null`;
 
         // find all users who bet one each game in the game id array
         // const sql = 'SELECT bettor, fader, game_id FROM wagers WHERE game_id IN (' + sqlParams + ') ORDER BY game_id ASC';
@@ -467,8 +483,8 @@ class SportsDataOperations extends DatabaseOperations {
             // now send out an email to each notifying them of their game starting
             let promiseArray = [];
             for (const emailObject of emailArray) {
-                let subject = `Your Game Is About To Start!`;
-                let text = `A game you bet on is about to start on ${emailObject.gameTime}. Get Ready!`;
+                let subject = `You Have A Game Today`;
+                let text = `A game you bet on starts at ${emailObject.gameTime}. Get Ready!`;
                 promiseArray.push(
                     emailHelper.emailUser(emailObject.bettorEmail, subject, text),
                     emailHelper.emailUser(emailObject.faderEmail, subject, text),
