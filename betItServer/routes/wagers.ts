@@ -124,17 +124,11 @@ router.post(
         if (!errors.isEmpty()) {
             return res.status(422).json({ errors: errors.array() })
         }
-        const props = ['bettor', 'wagerAmount', 'gameId', 'bettorChosenTeam'];
-        let allPropsPresent = true;
-        // check req object for the fields that I need to create the wager
-        props.forEach(field => {
-            if (!req.body.hasOwnProperty(field)) {
-                allPropsPresent = false
-            }
-        });
 
         const {bettor, wagerAmount, gameId, bettorChosenTeam} = req.body;
         try {
+            console.log(`${wagerAmount} is a ${typeof wagerAmount}`);
+            // TODO: FIX LTC CONVERSION FUNCTION
             await wagerOps.createWager(bettor, wagerAmount, gameId, bettorChosenTeam);
             let responseObj: MainResponseToClient<{message: string}> = {dataForClient: {message: 'Wager Created'}};
             if (res.locals.newAccessToken) {

@@ -1,7 +1,7 @@
 import pg, { Pool } from 'pg';
 import createSubscriber from "pg-listen"
 import { apiLogger, mainLogger, sportsLogger, tokenLogger, userLogger, wagerLogger } from '../loggerSetup/logSetup.js';
-import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, DatabaseGameModel, DatabaseUserModel, FullBlockCypherAddressData, GameToday, JWTUser, LoginResponse, RapidApiNbaGameData, RapidApiSeasonResponse, TxHashInfo, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
+import { BallDontLieData, BallDontLieResponse, BlockCypherAddressData, BlockCypherTxResponse, ClientUserModel, ClientWalletInfo, DatabaseGameModel, DatabaseUserModel, FullBlockCypherAddressData, GameToday, JWTUser, LoginResponse, RapidApiNbaGameData, RapidApiSeasonResponse, TxHashInfo, UserTokens, WagerStatus, wagerWinners, WalletInfo, XRPWalletInfo } from '../models/dataModels.js';
 import { rippleApi } from '../RippleConnection/ripple_setup.js';
 import bcrypt from 'bcrypt';
 import * as tokenHandler from '../tokens/token_auth.js';
@@ -762,6 +762,7 @@ class WagerDataOperations extends DatabaseOperations {
         }
     }
 
+    /** add a field into the escrow tabble */
     async insertIntoEscrow(addr: string, privKey: string, id: number, balance: number) {
         let query = "insert into escrow (address, private_key, balance, wager_id) values ($1, $2, $4, (select id from wagers where id=$3))"
         await DatabaseOperations.dbConnection.query(query, [addr, privKey, id, balance]);
@@ -774,9 +775,12 @@ class WagerDataOperations extends DatabaseOperations {
         return winner;
     }
 
+    /** adds a row to the wagers database and also generates an escrow wallet for the crypto */
     async createWager(bettor: string, amount: number, game_id: number, chosen_team: number, fader: string ="") {
         // create the escrow wallet and hold the data in memory
-        let escrowAddr = await ltcOps.createAddr(true);
+        let escrowAddr: ClientWalletInfo = await ltcOps.createAddr(true);
+
+        // TODO: change to a model that generates an escrow address AFTER the bet has a fader
 
         // create the wager and insert it into the wager's table
         let wagerInsertQuery = 'INSERT INTO wagers (bettor, wager_amount, game_id, is_active, bettor_chosen_team, escrow_address) values ($1, $2, $3, $4, $5, $6) RETURNING *'
@@ -785,7 +789,6 @@ class WagerDataOperations extends DatabaseOperations {
 
         // now insert the escrow addr info into the escrow table, using the wager's id as the FK. no crypto deposited yet
         if (escrowAddr) {
-            // determine how much of the wager will be taken out due to tx fees before sending
             let escrowInsert = await this.insertIntoEscrow(escrowAddr.address, escrowAddr.private, wagerInsert.id, (amount * 2));
         }
     }
@@ -890,6 +893,7 @@ class LitecoinOperations extends DatabaseOperations {
         }
     }
 
+    /** use this method to generate a ltc address. the private key will be encrypted in the returned object */
     async createAddr(escrow: Boolean, username?: string) {
         if (!escrow && username) {
             let addrResponse: AddressInformation = await axios.post(this.#api + `/addrs?${this.#token}`);
@@ -909,6 +913,7 @@ class LitecoinOperations extends DatabaseOperations {
         }
     }
 
+    /** creates and starts a tx on the ltc network. always send in the amount in LTC's. This will convert the value to litoshis for you */
     async createTx(sendingAddr: string, receivingAddr: string, amountInLtc: number) {
         /* 
             input: the address sending from
