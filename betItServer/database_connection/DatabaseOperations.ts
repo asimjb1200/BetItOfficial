@@ -365,7 +365,9 @@ class SportsDataOperations extends DatabaseOperations {
     }
 
     /** This method will run for each game that is being played
-     * on today's date
+     * on today's date. My quota for API-NBA is 5K requests a day and it resets daily
+     * at 20:20 (8:20pm)
+     * @param todaysGames an array of Game Objects
      */
     async scoreChecker(todaysGames: GameToday[]) {
         let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
