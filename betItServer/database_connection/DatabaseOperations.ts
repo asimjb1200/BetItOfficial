@@ -403,20 +403,37 @@ class SportsDataOperations extends DatabaseOperations {
                             // then stop the interval
                             clearInterval(intervalId);
                         }
-                    } else if(game.currentPeriod === "1/4") {
-                        // this means the game has started, now we'll check for wagers that haven't been taken
-                        const sql = `
-                            DELETE FROM wagers WHERE game_id=$1 AND fader IS null RETURNING *
-                        `;
+                    } else if(game.statusGame === "In Play") {
+                        // find all of the wagers with no fader and grab their id
+                        const findWagers =  `SELECT id FROM wagers WHERE game_id=$1 AND fader IS null`;
+                        const inactiveBetIds: number[] = (await DatabaseOperations.dbConnection.query(findWagers, [Number(game.gameId)])).rows;
 
-                        const wagersDeleted: WagerModel[] = (await DatabaseOperations.dbConnection.query(sql, [Number(game.gameId)])).rows;
+                        if (inactiveBetIds.length) {
+                            let deleteParams = "";
+                            for (let index = 1; index <= inactiveBetIds.length; index++) {
+                                if (index != inactiveBetIds.length) {
+                                    deleteParams += `$${index},`;
+                                } else {
+                                    deleteParams += `$${index}`;
+                                }
+                            }
+                            // remove the rows from escrow first
+                            const deleteEscrow =  `DELETE FROM escrow WHERE wager_id IN (${deleteParams}) RETURNING *`;
+                            const deletedRows: number = (await DatabaseOperations.dbConnection.query(deleteEscrow, inactiveBetIds)).rowCount;
 
-                        if (wagersDeleted.length) {
-                            wagerLogger.info(`Deleted ${wagersDeleted.length} wagers for game ${game.gameId} due to them not being active`);
-                            // now email the users telling them that their wager wasn't taken
-                            for (const wager of wagersDeleted) {
-                                const bettorEmailAddress = await dbOps.getEmailAddress(wager.bettor);
-                                emailHelper.emailUser(bettorEmailAddress, "No One Took Your Bet", "No one took your bet before game time. Your bet has been removed and no crypto was taken from your wallet.");
+                            if (deletedRows > 0) {
+                                // this means that we found data in escrow and removed it. so it's safe to delete from the wagers table
+                                const deleteWagers = `DELETE FROM wagers WHERE game_id=$1 AND fader IS null RETURNING *`;
+                                const wagersDeleted: WagerModel[] = (await DatabaseOperations.dbConnection.query(deleteWagers, [Number(game.gameId)])).rows;
+        
+                                if (wagersDeleted.length) {
+                                    wagerLogger.info(`Deleted ${wagersDeleted.length} wagers for game ${game.gameId} due to them not being active`);
+                                    // now email the users telling them that their wager wasn't taken
+                                    for (const wager of wagersDeleted) {
+                                        const bettorEmailAddress = await dbOps.getEmailAddress(wager.bettor);
+                                        emailHelper.emailUser(bettorEmailAddress, "No One Took Your Bet", "No one took your bet before game time. Your bet has been removed from the pool.");
+                                    }
+                                }
                             }
                         }
                     }
@@ -428,7 +445,7 @@ class SportsDataOperations extends DatabaseOperations {
                 // then stop the interval
                 clearInterval(intervalId);
             }
-        }, 5000);
+        }, 1.8e6); // this will run twice an hour
     }
 
     /**
