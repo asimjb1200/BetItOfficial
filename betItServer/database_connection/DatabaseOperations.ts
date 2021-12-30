@@ -450,7 +450,7 @@ class SportsDataOperations extends DatabaseOperations {
                 // then stop the interval
                 clearInterval(intervalId);
             }
-        }, 1.8e6); // this will run twice an hour
+        }, 10000); // this will run twice an hour
     }
 
     /**
