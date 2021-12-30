@@ -359,8 +359,9 @@ class SportsDataOperations extends DatabaseOperations {
      */
     async updateGamesWithWinners(gameId: number, winningTeam: number) {
         // update the games table with the winner of each game
-        let updateGamesQuery = "UPDATE games SET winning_team=$1 WHERE game_id=$2";
-        await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, gameId]);
+        let updateGamesQuery = "UPDATE games SET winning_team=$1 WHERE game_id=$2 RETURNING *";
+        const updatedRow = (await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, gameId])).rows;
+        console.log({updatedRow});
         return true;
     }
 
@@ -379,16 +380,17 @@ class SportsDataOperations extends DatabaseOperations {
             todaysGames.forEach(x => {
                 requestArr.push(axios.get(`${this.#rapidApiNBA}games/gameId/${x.game_id}`, this.#rapidApiConfig));
             });
-
+            
             try {
                 let dataForGames: RapidApiSeasonResponse[] = (await Promise.all(requestArr)).map(x => x.data);
+                console.log({dataForGames});
                 // find out which games were completed
                 for (const gameData of dataForGames) {
                     let game = gameData.api.games[0];
                     
                     if (game.statusGame == 'Finished') {
                         let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.vTeam.teamId);
-
+                        console.log({winningTeam});
                         try {
                             // record the game winner and the score in the 'games' table.
                             let gameInserted = await this.updateGamesWithWinners(Number(game.gameId), winningTeam);
@@ -444,6 +446,7 @@ class SportsDataOperations extends DatabaseOperations {
                 if (axios.isAxiosError(apiErr)) {
                     apiLogger.error(`There was a problem with the Rapid API Nba endpoint: ${JSON.stringify(apiErr.response?.data)}`);
                 }
+                sportsLogger.info("About to stop the score checker function");
                 // then stop the interval
                 clearInterval(intervalId);
             }
