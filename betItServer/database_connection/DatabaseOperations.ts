@@ -250,7 +250,7 @@ class SportsDataOperations extends DatabaseOperations {
         return gameTimeResponse.game_begins;
     }
 
-    async getGamesByDate(date: Date = new Date(), timezone: string = 'EST') {
+    async getGamesByDate(date: Date = new Date(), timezone: string = 'America/Chicago') {
         const month = date.getMonth() + 1
         const day = date.getDate()
         const year = date.getFullYear();

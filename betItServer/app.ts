@@ -36,12 +36,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 wagerOps.setUpSubscriber();
 
 // set up scheduler to check for nba games once a day at 6am central
-// const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicago'}, function(){
-//   sportOps.gameDayCheck();
-// });
-
-let gamesToday = await sportOps.getGamesByDate(new Date(), 'CST');
-sportOps.scoreChecker(gamesToday);
+const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicago'}, function(){
+  sportOps.gameDayCheck();
+});
+sportOps.gameDayCheck();
 
 app.use('/wallet-handler', authenticateJWT, walletHandler);
 app.use('/sports-handler', authenticateJWT, sportsHandler);
