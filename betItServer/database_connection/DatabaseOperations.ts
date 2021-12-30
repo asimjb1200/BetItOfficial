@@ -255,7 +255,7 @@ class SportsDataOperations extends DatabaseOperations {
         const day = date.getDate()
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
-    
+        console.log(queryThisDate);
         try {
             const sql = `
                 SELECT * 
@@ -265,7 +265,7 @@ class SportsDataOperations extends DatabaseOperations {
             `;
 
             const games = (await DatabaseOperations.dbConnection.query(sql, [timezone, queryThisDate]));
-            console.log(games.rows.toString());
+            console.log(JSON.stringify(games.rows));
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
@@ -373,7 +373,7 @@ class SportsDataOperations extends DatabaseOperations {
      * @param todaysGames an array of Game Objects
      */
     async scoreChecker(todaysGames: GameToday[]) {
-        console.log(todaysGames.toString())
+        console.log("todaysGames: " + JSON.stringify(todaysGames));
         let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
 
         let intervalId = setInterval(async () => {
@@ -386,14 +386,14 @@ class SportsDataOperations extends DatabaseOperations {
             
             try {
                 let dataForGames: RapidApiSeasonResponse[] = (await Promise.all(requestArr)).map(x => x.data);
-                console.log(dataForGames.toString());
+                
                 // find out which games were completed
                 for (const gameData of dataForGames) {
                     let game = gameData.api.games[0];
                     
                     if (game.statusGame == 'Finished') {
                         let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.vTeam.teamId);
-                        console.log({winningTeam});
+                        console.log("winningTeam: " + winningTeam);
                         try {
                             // record the game winner and the score in the 'games' table.
                             let gameInserted = await this.updateGamesWithWinners(Number(game.gameId), winningTeam);
