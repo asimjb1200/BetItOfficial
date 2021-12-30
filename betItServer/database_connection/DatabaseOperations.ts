@@ -255,6 +255,7 @@ class SportsDataOperations extends DatabaseOperations {
         const day = date.getDate()
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
+    
         try {
             const sql = `
                 SELECT * 
@@ -264,6 +265,7 @@ class SportsDataOperations extends DatabaseOperations {
             `;
 
             const games = (await DatabaseOperations.dbConnection.query(sql, [timezone, queryThisDate]));
+            console.log(games.rows.toString());
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
