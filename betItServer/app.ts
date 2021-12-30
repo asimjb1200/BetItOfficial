@@ -39,7 +39,6 @@ wagerOps.setUpSubscriber();
 const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/New_York'}, function(){
   sportOps.gameDayCheck();
 });
-sportOps.gameDayCheck();
 
 app.use('/wallet-handler', authenticateJWT, walletHandler);
 app.use('/sports-handler', authenticateJWT, sportsHandler);
