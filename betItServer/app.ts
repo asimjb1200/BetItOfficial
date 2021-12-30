@@ -35,8 +35,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // listen to db events
 wagerOps.setUpSubscriber();
 
-// set up scheduler to check for nba games once a day at 6am central
-const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/Chicago'}, function(){
+// set up scheduler to check for nba games once a day at 6am EST
+const gameDayJob = schedule.scheduleJob({hour: 6, minute: 0, tz: 'America/New_York'}, function(){
   sportOps.gameDayCheck();
 });
 sportOps.gameDayCheck();

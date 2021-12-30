@@ -250,12 +250,12 @@ class SportsDataOperations extends DatabaseOperations {
         return gameTimeResponse.game_begins;
     }
 
-    async getGamesByDate(date: Date = new Date(), timezone: string = 'America/Chicago') {
+    async getGamesByDate(date: Date = new Date(), timezone: string = 'EST') {
         const month = date.getMonth() + 1
-        const day = date.getDate() - 1;
+        const day = date.getDate();
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
-        console.log(queryThisDate);
+
         try {
             const sql = `
                 SELECT * 
@@ -339,7 +339,7 @@ class SportsDataOperations extends DatabaseOperations {
                 */
 
                 const gameIds = gamesHolder.map(x => x.game_id);
-                console.log("Game ID's: " + JSON.stringify(gameIds));
+                
                 //await wagerOps.checkIfWagerForGameNotTaken(gameIds);
                 await this.notifyUsersAboutGameTime(gameIds);
                 await this.scoreChecker(gamesHolder);
@@ -358,11 +358,11 @@ class SportsDataOperations extends DatabaseOperations {
      * once the games table is updated, my database trigger will update the wagers table
      * which will then kick off the payout process
      */
-    async updateGamesWithWinners(gameId: number, winningTeam: number) {
+    async updateGamesWithWinners(gameId: number, winningTeam: number, homeScore: number, awayScore: number) {
         // update the games table with the winner of each game
-        let updateGamesQuery = "UPDATE games SET winning_team=$1 WHERE game_id=$2 RETURNING *";
-        const updatedRow = (await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, gameId])).rows;
-        console.log({updatedRow});
+        let updateGamesQuery = "UPDATE games SET winning_team=$1, home_score=$2, away_score=$3 WHERE game_id=$4";
+        const updatedRow = (await DatabaseOperations.dbConnection.query(updateGamesQuery, [winningTeam, homeScore, awayScore, gameId])).rows;
+
         return true;
     }
 
@@ -372,7 +372,8 @@ class SportsDataOperations extends DatabaseOperations {
      * @param todaysGames an array of Game Objects
      */
     async scoreChecker(todaysGames: GameToday[]) {
-        console.log("todaysGames: " + JSON.stringify(todaysGames));
+        const gameIds: number[] = todaysGames.map(x => x.game_id);
+        sportsLogger.info(`Today's games: ${JSON.stringify(gameIds)}`);
         let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
 
         let intervalId = setInterval(async () => {
@@ -392,17 +393,17 @@ class SportsDataOperations extends DatabaseOperations {
                     
                     if (game.statusGame == 'Finished') {
                         let winningTeam: number = (Number(game.hTeam.score?.points) > Number(game.vTeam.score?.points)) ? Number(game.hTeam.teamId) : Number(game.vTeam.teamId);
-                        console.log("winningTeam: " + winningTeam);
+                        sportsLogger.info(`Team ${winningTeam} won game ${game.gameId}`);
                         try {
                             // record the game winner and the score in the 'games' table.
-                            let gameInserted = await this.updateGamesWithWinners(Number(game.gameId), winningTeam);
+                            let gameInserted = await this.updateGamesWithWinners(Number(game.gameId), winningTeam, +game.hTeam.score?.points!, +game.vTeam.score?.points!);
 
                             // remove that game from the todaysGames array
                             todaysGames = todaysGames.filter(x => x.game_id != Number(game.gameId));
 
                             if (todaysGames.length == 0) {
                                 // then stop the interval
-                                console.log("Stopping the interval");
+                                sportsLogger.info("Score Checker function has gracefully stopped execution");
                                 clearInterval(intervalId);
                             }
                         } catch (error) {
@@ -444,17 +445,16 @@ class SportsDataOperations extends DatabaseOperations {
                             }
                         }
                     }
-                    console.log("nothing happened")
                 }
             } catch (apiErr) {
                 if (axios.isAxiosError(apiErr)) {
                     apiLogger.error(`There was a problem with the Rapid API Nba endpoint: ${JSON.stringify(apiErr.response?.data)}`);
                 }
-                sportsLogger.info("About to stop the score checker function");
+                sportsLogger.error("About to stop the score checker function due to an api error: " + apiErr);
                 // then stop the interval
                 clearInterval(intervalId);
             }
-        }, 10000); // this will run twice an hour
+        }, 1.8e6); // this will run twice an hour
     }
 
     /**
