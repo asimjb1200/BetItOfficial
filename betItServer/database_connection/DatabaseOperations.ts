@@ -252,7 +252,7 @@ class SportsDataOperations extends DatabaseOperations {
 
     async getGamesByDate(date: Date = new Date(), timezone: string = 'America/Chicago') {
         const month = date.getMonth() + 1
-        const day = date.getDate()
+        const day = date.getDate() - 1;
         const year = date.getFullYear();
         const queryThisDate = `${year}-${month}-${day}`;
         console.log(queryThisDate);
@@ -265,7 +265,6 @@ class SportsDataOperations extends DatabaseOperations {
             `;
 
             const games = (await DatabaseOperations.dbConnection.query(sql, [timezone, queryThisDate]));
-            console.log(JSON.stringify(games.rows));
             return games.rows;
         } catch (error) {
             sportsLogger.error(`Problem with database when looking for games on date ${queryThisDate}. \n Error Msg: ${error}`);
@@ -340,7 +339,7 @@ class SportsDataOperations extends DatabaseOperations {
                 */
 
                 const gameIds = gamesHolder.map(x => x.game_id);
-
+                console.log("Game ID's: " + JSON.stringify(gameIds));
                 //await wagerOps.checkIfWagerForGameNotTaken(gameIds);
                 await this.notifyUsersAboutGameTime(gameIds);
                 await this.scoreChecker(gamesHolder);
@@ -403,6 +402,7 @@ class SportsDataOperations extends DatabaseOperations {
 
                             if (todaysGames.length == 0) {
                                 // then stop the interval
+                                console.log("Stopping the interval");
                                 clearInterval(intervalId);
                             }
                         } catch (error) {
@@ -444,6 +444,7 @@ class SportsDataOperations extends DatabaseOperations {
                             }
                         }
                     }
+                    console.log("nothing happened")
                 }
             } catch (apiErr) {
                 if (axios.isAxiosError(apiErr)) {
