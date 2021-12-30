@@ -371,6 +371,7 @@ class SportsDataOperations extends DatabaseOperations {
      * @param todaysGames an array of Game Objects
      */
     async scoreChecker(todaysGames: GameToday[]) {
+        console.log(todaysGames.toString())
         let requestArr: Promise<AxiosResponse<RapidApiSeasonResponse>>[] = [];
 
         let intervalId = setInterval(async () => {
@@ -383,7 +384,7 @@ class SportsDataOperations extends DatabaseOperations {
             
             try {
                 let dataForGames: RapidApiSeasonResponse[] = (await Promise.all(requestArr)).map(x => x.data);
-                console.log({dataForGames});
+                console.log(dataForGames.toString());
                 // find out which games were completed
                 for (const gameData of dataForGames) {
                     let game = gameData.api.games[0];
